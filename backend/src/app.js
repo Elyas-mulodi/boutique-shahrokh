@@ -22,6 +22,7 @@ import { fileURLToPath } from "url";
 import MediaRoutes from "./Modules/Media/Media.js";
 import DashboardRoutes from "./Modules/Dashboard/Dashboard.js";
 import CouponRoutes from "./Modules/Coupon/Coupon.js";
+import WishlistRoutes from "./Modules/Wishlist/Wishlist.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -68,6 +69,7 @@ app.use("/api/v1/payment", PaymentRoutes);
 app.use("/api/v1/media", MediaRoutes);
 app.use("/api/v1/dashboard", DashboardRoutes);
 app.use("/api/v1/coupons", CouponRoutes);
+app.use("/api/v1/wishlist", WishlistRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

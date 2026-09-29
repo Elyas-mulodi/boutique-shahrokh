@@ -20,3 +20,5 @@ async function start() {
     server.close(() => process.exit(1));
   });
 }
+
+start()
