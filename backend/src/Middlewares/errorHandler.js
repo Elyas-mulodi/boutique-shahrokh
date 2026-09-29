@@ -25,6 +25,11 @@ export function errorHandler(err, req, res, next) {
       .join(", ");
   }
 
+  if (err.name === "MulterError" || err.message?.includes("فرمت")) {
+    statusCode = 400;
+    message = err.message;
+  }
+
   statusCode = statusCode || 500;
   message = message || "خطای داخلی سرور";
 

@@ -17,6 +17,12 @@ import ProductRoutes from "./Modules/Product/Product.js";
 import CartRoutes from "./Modules/Cart/Cart.js";
 import OrderRoutes from "./Modules/Order/Order.js";
 import PaymentRoutes from "./Modules/Payment/Payment.js";
+import path from "path";
+import { fileURLToPath } from "url";
+import MediaRoutes from "./Modules/Media/Media.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 
 const app = express();
 
@@ -49,6 +55,9 @@ app.get("/health", (req, res) => {
   res.json({ success: true, message: "Boutique Shahrokh API is running 🟢" });
 });
 
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
+
+
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/users", UserRoutes);
 app.use("/api/v1/categories", CategoryRoutes);
@@ -56,6 +65,7 @@ app.use("/api/v1/products", ProductRoutes);
 app.use("/api/v1/cart", CartRoutes);
 app.use("/api/v1/orders", OrderRoutes);
 app.use("/api/v1/payment", PaymentRoutes);
+app.use("/api/v1/media", MediaRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
