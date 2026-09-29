@@ -12,6 +12,11 @@ import env from "./Config/env.js";
 import { notFound, errorHandler } from "./Middlewares/errorHandler.js";
 import AuthRoutes from "./Modules/Auth/Auth.js";
 import UserRoutes from "./Modules/User/User.js";
+import CategoryRoutes from "./Modules/Category/Category.js";
+import ProductRoutes from "./Modules/Product/Product.js";
+import CartRoutes from "./Modules/Cart/Cart.js";
+import OrderRoutes from "./Modules/Order/Order.js";
+import PaymentRoutes from "./Modules/Payment/Payment.js";
 
 const app = express();
 
@@ -29,11 +34,14 @@ if (env.NODE_ENV === "development") {
 }
 
 const limiter = rateLimit({
-  windowMs: 5 * 60 * 1000, 
+  windowMs: 5 * 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, message: "تعداد درخواست‌ها بیش از حد مجاز است، کمی صبر کنید" },
+  message: {
+    success: false,
+    message: "تعداد درخواست‌ها بیش از حد مجاز است، کمی صبر کنید",
+  },
 });
 app.use("/api", limiter);
 
@@ -43,6 +51,11 @@ app.get("/health", (req, res) => {
 
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/users", UserRoutes);
+app.use("/api/v1/categories", CategoryRoutes);
+app.use("/api/v1/products", ProductRoutes);
+app.use("/api/v1/cart", CartRoutes);
+app.use("/api/v1/orders", OrderRoutes);
+app.use("/api/v1/payment", PaymentRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
