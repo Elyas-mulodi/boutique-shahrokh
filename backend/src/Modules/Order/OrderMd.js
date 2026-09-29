@@ -62,7 +62,8 @@ const orderSchema = new Schema(
       enum: ["pending", "paid", "failed"],
       default: "pending",
     },
-
+couponCode: { type: String, default: null },
+discountAmount: { type: Number, default: 0 },
     // اطلاعات درگاه زرین‌پال
     paymentAuthority: { type: String, index: true }, // کد Authority دریافتی از زرین‌پال
     paymentRefId: { type: String, default: null }, // کد رهگیری پرداخت موفق (RefID)

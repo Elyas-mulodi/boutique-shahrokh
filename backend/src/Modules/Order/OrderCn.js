@@ -6,6 +6,8 @@ import OrderMd from "./OrderMd.js";
 import CartMd from "../Cart/CartMd.js";
 import ProductMd from "../Product/ProductMd.js";
 import UserMd from "../User/UserMd.js";
+import CouponMd from "../Coupon/CouponMd.js";
+import { validateAndCalculate } from "../Coupon/CouponCn.js";
 import { requestZarinpalPayment } from "../Payment/PaymentCn.js";
 
 /**
@@ -13,16 +15,19 @@ import { requestZarinpalPayment } from "../Payment/PaymentCn.js";
  * موجودی در این مرحله فقط چک میشه، کسر نمیشه (کسر موجودی بعد از پرداخت موفق انجام میشه).
  */
 export const createOrder = asyncHandler(async (req, res) => {
+  const { address, couponCode } = req.body;
+
+  // ۱. سبد خرید کاربر رو بگیر
   const cart = await CartMd.findOne({ user: req.user._id });
   if (!cart || cart.items.length === 0) {
     throw ApiError.badRequest("سبد خرید شما خالی است");
   }
 
-  // بررسی دقیق موجودی هر آیتم قبل از ساخت سفارش
+  // ۲. موجودی هر آیتم رو چک کن (بدون کسر کردن)
   for (const item of cart.items) {
     const product = await ProductMd.findById(item.product);
     if (!product || !product.isActive) {
-      throw ApiError.badRequest(`محصولی از سبد خرید شما دیگر موجود نیست`);
+      throw ApiError.badRequest("محصولی از سبد خرید شما دیگر موجود نیست");
     }
     const variant = product.variants.id(item.variantId);
     if (!variant || variant.stock < item.quantity) {
@@ -30,28 +35,53 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  const totalAmount = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  // ۳. مبلغ خام سفارش
+  const rawAmount = cart.items.reduce(
+    (sum, i) => sum + i.price * i.quantity,
+    0,
+  );
 
+  // ۴. اگر کد تخفیف داده شده، اعتبارسنجی و محاسبه تخفیف
+  let discountAmount = 0;
+  let couponDoc = null;
+
+  if (couponCode) {
+    const result = await validateAndCalculate(couponCode, rawAmount);
+    discountAmount = result.discountAmount;
+    couponDoc = result.coupon;
+  }
+
+  const payableAmount = rawAmount - discountAmount;
+
+  // ۵. ساخت سفارش با مبلغ نهایی (بعد از تخفیف)
   const order = await OrderMd.create({
     user: req.user._id,
     items: cart.items.map((i) => ({
       product: i.product,
       variantId: i.variantId,
-      name: i.size, // در ادامه اگر اسم محصول رو populate کردی جایگزین کن
+      name: i.size,
       size: i.size,
       color: i.color,
       quantity: i.quantity,
       price: i.price,
     })),
-    address: req.body.address,
-    totalAmount,
+    address,
+    totalAmount: payableAmount,
+    couponCode: couponDoc?.code || null,
+    discountAmount,
   });
 
-  // ذخیره آدرس به‌عنوان پیش‌فرض روی پروفایل کاربر
-  await UserMd.findByIdAndUpdate(req.user._id, { defaultAddress: req.body.address });
+  // ۶. آدرس رو به‌عنوان پیش‌فرض روی پروفایل کاربر ذخیره کن
+  await UserMd.findByIdAndUpdate(req.user._id, { defaultAddress: address });
 
+  // ۷. اگر کد تخفیف مصرف شد، شمارنده استفاده‌ش رو زیاد کن
+  if (couponDoc) {
+    await CouponMd.findByIdAndUpdate(couponDoc._id, { $inc: { usedCount: 1 } });
+  }
+
+  // ۸. درخواست پرداخت از زرین‌پال با مبلغ نهایی
   const { authority, paymentUrl } = await requestZarinpalPayment({
-    amount: totalAmount,
+    amount: payableAmount,
     description: `پرداخت سفارش بوتیک شاهرخ - شماره ${order._id}`,
     mobile: req.user.phone,
   });
@@ -59,11 +89,17 @@ export const createOrder = asyncHandler(async (req, res) => {
   order.paymentAuthority = authority;
   await order.save();
 
-  new ApiResponse(201, { orderId: order._id, paymentUrl }, "سفارش ثبت شد، به درگاه پرداخت هدایت شوید").send(res);
+  new ApiResponse(
+    201,
+    { orderId: order._id, payableAmount, discountAmount, paymentUrl },
+    "سفارش ثبت شد، به درگاه پرداخت هدایت شوید",
+  ).send(res);
 });
 
 export const getMyOrders = asyncHandler(async (req, res) => {
-  const orders = await OrderMd.find({ user: req.user._id }).sort({ createdAt: -1 });
+  const orders = await OrderMd.find({ user: req.user._id }).sort({
+    createdAt: -1,
+  });
   new ApiResponse(200, orders, "سفارش‌های من").send(res);
 });
 
@@ -87,11 +123,19 @@ export const listAllOrders = asyncHandler(async (req, res) => {
 
   const skip = (Number(page) - 1) * Number(limit);
   const [orders, total] = await Promise.all([
-    OrderMd.find(filter).populate("user", "name phone").skip(skip).limit(Number(limit)).sort({ createdAt: -1 }),
+    OrderMd.find(filter)
+      .populate("user", "name phone")
+      .skip(skip)
+      .limit(Number(limit))
+      .sort({ createdAt: -1 }),
     OrderMd.countDocuments(filter),
   ]);
 
-  new ApiResponse(200, { orders, total, page: Number(page), pages: Math.ceil(total / limit) }, "لیست سفارش‌ها").send(res);
+  new ApiResponse(
+    200,
+    { orders, total, page: Number(page), pages: Math.ceil(total / limit) },
+    "لیست سفارش‌ها",
+  ).send(res);
 });
 
 export const updateOrderStatus = asyncHandler(async (req, res) => {
@@ -99,7 +143,11 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   const allowed = ["processing", "shipped", "delivered", "canceled"];
   if (!allowed.includes(status)) throw ApiError.badRequest("وضعیت نامعتبر است");
 
-  const order = await OrderMd.findByIdAndUpdate(req.params.id, { status }, { new: true });
+  const order = await OrderMd.findByIdAndUpdate(
+    req.params.id,
+    { status },
+    { new: true },
+  );
   if (!order) throw ApiError.notFound("سفارش یافت نشد");
 
   new ApiResponse(200, order, "وضعیت سفارش بروزرسانی شد").send(res);
@@ -113,9 +161,13 @@ export async function markOrderPaidAndDeductStock(order) {
 
     for (const item of order.items) {
       const updated = await ProductMd.findOneAndUpdate(
-        { _id: item.product, "variants._id": item.variantId, "variants.stock": { $gte: item.quantity } },
+        {
+          _id: item.product,
+          "variants._id": item.variantId,
+          "variants.stock": { $gte: item.quantity },
+        },
         { $inc: { "variants.$.stock": -item.quantity } },
-        { new: true, session }
+        { new: true, session },
       );
       if (!updated) {
         throw new Error(`STOCK_INSUFFICIENT:${item.product}`);
@@ -126,7 +178,11 @@ export async function markOrderPaidAndDeductStock(order) {
     order.paymentStatus = "paid";
     await order.save({ session });
 
-    await CartMd.findOneAndUpdate({ user: order.user }, { items: [] }, { session });
+    await CartMd.findOneAndUpdate(
+      { user: order.user },
+      { items: [] },
+      { session },
+    );
 
     await session.commitTransaction();
     return { success: true };
@@ -138,7 +194,10 @@ export async function markOrderPaidAndDeductStock(order) {
     order.stockDeductionFailed = true;
     await order.save();
 
-    console.error(`⚠️ CRITICAL: Stock deduction failed for paid order ${order._id}:`, err.message);
+    console.error(
+      `⚠️ CRITICAL: Stock deduction failed for paid order ${order._id}:`,
+      err.message,
+    );
     return { success: false, error: err.message };
   } finally {
     session.endSession();
