@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.*.local
+logs/
+*.log
+uploads/          # (اگه عکس‌ها لوکال ذخیره میشن، خود پوشه رو گیت نکن)
+coverage/
