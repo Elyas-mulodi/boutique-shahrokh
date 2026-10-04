@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #121212;
+  --color-paper: #fafafa;
+  --color-blue: #2d4fff;
+  --color-amber: #f2a93b;
+
+  --font-body: "Vazirmatn", sans-serif;
+  --font-heading: "Vazirmatn", sans-serif;
+}
