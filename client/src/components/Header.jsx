@@ -54,26 +54,27 @@ function Header() {
 
   return (
     <header className="sticky top-0 z-50">
-      <motion.div
-        animate={{ height: scrolled ? 64 : 84 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className={`bg-paper/95 backdrop-blur-md border-b border-ink/10 ${scrolled ? "shadow-sm" : ""}`}
-      >
-        <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
-          <button
-            className="md:hidden text-ink"
-            onClick={() => setMenuOpen(true)}
-            aria-label="باز کردن منو"
-          >
-            <Menu size={24} />
-          </button>
+      {/* این بخش backdrop-blur داره - فقط ردیف بالا + نوار سرچ، نه کل header */}
+      <div className="bg-paper/95 backdrop-blur-md border-b border-ink/10">
+        <motion.div
+          animate={{ height: scrolled ? 64 : 84 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className={`max-w-7xl mx-auto px-4 flex items-center justify-between ${scrolled ? "shadow-sm" : ""}`}
+        >
+          {/* همبرگر + لوگو کنار هم */}
+          <div className="flex items-center gap-3">
+            <button
+              className="md:hidden text-ink"
+              onClick={() => setMenuOpen(true)}
+              aria-label="باز کردن منو"
+            >
+              <Menu size={24} />
+            </button>
 
-          <Link
-            to="/"
-            className="font-heading text-ink text-xl md:text-2xl hidden md:block"
-          >
-            بوتیک شاهرخ
-          </Link>
+            <Link to="/" className="font-heading text-ink text-lg md:text-2xl">
+              بوتیک شاهرخ
+            </Link>
+          </div>
 
           <nav className="hidden md:flex items-center gap-8">
             {categories.map((cat) => (
@@ -135,7 +136,7 @@ function Header() {
               </span>
             </Link>
           </div>
-        </div>
+        </motion.div>
 
         <AnimatePresence>
           {searchOpen && (
@@ -157,8 +158,9 @@ function Header() {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
 
+      {/* این دو تا بیرون از div بالا هستن (بدون backdrop-blur در مسیر والدشون) تا fixed درست کار کنه */}
       <AnimatePresence>
         {menuOpen && (
           <>
