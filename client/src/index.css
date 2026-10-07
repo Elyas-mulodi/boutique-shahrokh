@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @theme {
   --color-ink: #121212;
   --color-paper: #fafafa;
@@ -8,4 +17,12 @@
 
   --font-body: "Vazirmatn", sans-serif;
   --font-heading: "Vazirmatn", sans-serif;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

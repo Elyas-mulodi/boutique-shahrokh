@@ -4,6 +4,9 @@ import Home from "./pages/Home";
 import CategoryPage from "./pages/CategoryPage";
 import Cart from "./pages/Cart";
 import Account from "./pages/Account";
+import ProductListPage from "./pages/ProductList/ProductListPage";
+import Footer from "./components/Footer";
+import ProductDetailPage from "./pages/ProductDetail/ProductDetailPage";
 
 function App() {
   return (
@@ -37,8 +40,25 @@ function App() {
               </div>
             }
           />
+          <Route
+            path="/products"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <ProductListPage />
+              </div>
+            }
+          />
+          <Route
+            path="/product/:slug"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <ProductDetailPage />
+              </div>
+            }
+          />
         </Routes>
       </main>
+      <Footer />
     </div>
   );
 }

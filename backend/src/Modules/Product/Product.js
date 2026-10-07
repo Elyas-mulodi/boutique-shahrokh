@@ -6,8 +6,9 @@ import { protect, authorize } from "../../Middlewares/auth.js";
 
 const router = express.Router();
 
-router.get("/", ProductCn.list); 
-router.get("/:slug", ProductCn.getBySlug); 
+router.get("/", ProductCn.list);
+router.get("/best-sellers", ProductCn.getBestSellers);
+router.get("/:slug", ProductCn.getBySlug);
 
 router.use(protect, authorize("admin"));
 router.post("/", validate(createProductSchema), ProductCn.create);
