@@ -3,6 +3,24 @@ import ApiResponse from "../../Utils/ApiResponse.js";
 import ApiError from "../../Utils/ApiError.js";
 import ProductMd from "./ProductMd.js";
 import OrderMd from "../Order/OrderMd.js";
+import CategoryMd from "../Category/CategoryMd.js";
+
+async function getCategoryWithDescendantIds(categoryId) {
+  const ids = [categoryId];
+  let frontier = [categoryId];
+  let depth = 0;
+
+  while (frontier.length > 0 && depth < 10) {
+    const children = await CategoryMd.find({ parent: { $in: frontier }, isActive: true })
+      .select("_id")
+      .lean();
+    frontier = children.map((c) => c._id);
+    ids.push(...frontier);
+    depth += 1;
+  }
+
+  return ids;
+}
 
 export const create = asyncHandler(async (req, res) => {
   const exists = await ProductMd.findOne({ slug: req.body.slug });
@@ -16,7 +34,7 @@ export const list = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20, category, search, minPrice, maxPrice, sort } = req.query;
   const filter = { isActive: true };
 
-  if (category) filter.category = category;
+  if (category) filter.category = { $in: await getCategoryWithDescendantIds(category) };
   if (search) filter.$text = { $search: search };
   if (minPrice || maxPrice) {
     filter.price = {};

@@ -1,19 +1,25 @@
 import { Routes, Route } from "react-router-dom";
-import Header from "./components/Header";
 import Home from "./pages/Home";
-import CategoryPage from "./pages/CategoryPage";
-import Cart from "./pages/Cart";
-import Account from "./pages/Account";
 import ProductListPage from "./pages/ProductList/ProductListPage";
 import Footer from "./components/Footer";
 import ProductDetailPage from "./pages/ProductDetail/ProductDetailPage";
+import AuthPage from "./pages/Auth/AuthPage";
+import ScrollToTop from "./components/ScrollToTop";
+import CartPage from "./pages/Cart/CartPage";
+import CheckoutPage from "./pages/Checkout/CheckoutPage";
+import PaymentFailed from "./pages/Payment/PaymentFailed";
+import PaymentSuccess from "./pages/Payment/PaymentSuccess";
+import Header from "./components/Header/Header";
+import ProfilePage from "./pages/Profile/ProfilePage";
+import ProtectedRoute from "./components/Auth/ProtectedRoute";
+import CategoryPage from "./pages/Category/CategoryPage";
 
 function App() {
   return (
     <div className="bg-paper min-h-screen">
-      {" "}
+      <ScrollToTop />
       <Header />
-      <main>
+      <main className="pb-20 md:pb-0">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route
@@ -28,7 +34,7 @@ function App() {
             path="/cart"
             element={
               <div className="max-w-7xl mx-auto px-4">
-                <Cart />
+                <CartPage />
               </div>
             }
           />
@@ -36,7 +42,7 @@ function App() {
             path="/account"
             element={
               <div className="max-w-7xl mx-auto px-4">
-                <Account />
+                <AuthPage />
               </div>
             }
           />
@@ -54,6 +60,42 @@ function App() {
               <div className="max-w-7xl mx-auto px-4">
                 <ProductDetailPage />
               </div>
+            }
+          />
+          <Route
+            path="/payment/success"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <PaymentSuccess />
+              </div>
+            }
+          />
+          <Route
+            path="/payment/failed"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <PaymentFailed />
+              </div>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <div className="max-w-7xl mx-auto px-4">
+                  <ProfilePage />
+                </div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute>
+                <div className="max-w-7xl mx-auto px-4">
+                  <CheckoutPage />
+                </div>
+              </ProtectedRoute>
             }
           />
         </Routes>

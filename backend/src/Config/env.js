@@ -17,14 +17,11 @@ const env = {
   ZARINPAL_CALLBACK_URL: process.env.ZARINPAL_CALLBACK_URL,
 
   ORDER_EXPIRE_MINUTES: Number(process.env.ORDER_EXPIRE_MINUTES) || 30,
+
+  UNPAID_ORDER_DELETE_HOURS: Number(process.env.UNPAID_ORDER_DELETE_HOURS) || 24,
 };
 
-const required = [
-  "MONGO_URI",
-  "JWT_SECRET",
-  "ZARINPAL_MERCHANT_ID",
-  "ZARINPAL_CALLBACK_URL",
-];
+const required = ["MONGO_URI", "JWT_SECRET", "ZARINPAL_MERCHANT_ID", "ZARINPAL_CALLBACK_URL"];
 required.forEach((key) => {
   if (!env[key]) {
     console.error(`❌ Missing required env variable: ${key}`);

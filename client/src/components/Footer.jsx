@@ -14,11 +14,15 @@ function Footer() {
   return (
     <footer className="bg-ink text-paper mt-16">
       {/* بخش خبرنامه */}
-      <div className="border-b border-paper/10">
-        <div className="max-w-7xl mx-auto px-4 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="border-t border-paper/10">
+        <div className="max-w-7xl mx-auto px-4 py-5 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="text-center md:text-right">
-            <h3 className="font-heading text-lg md:text-xl font-bold">عضویت در خبرنامه</h3>
-            <p className="font-body text-paper/60 text-sm mt-1">از جدیدترین کالکشن‌ها و تخفیف‌ها باخبر شو</p>
+            <h3 className="font-heading text-lg md:text-xl font-bold">
+              عضویت در خبرنامه
+            </h3>
+            <p className="font-body text-paper/60 text-sm mt-1">
+              از جدیدترین کالکشن‌ها و تخفیف‌ها باخبر شو
+            </p>
           </div>
 
           <form
@@ -54,7 +58,8 @@ function Footer() {
         >
           <h4 className="font-heading text-lg font-bold mb-3">بوتیک شاهرخ</h4>
           <p className="font-body text-paper/60 text-sm leading-6">
-            فروشگاه آنلاین پوشاک با کیفیت و طراحی متفاوت، برای سبکی که مال خودته.
+            فروشگاه آنلاین پوشاک با کیفیت و طراحی متفاوت، برای سبکی که مال
+            خودته.
           </p>
           <div className="flex items-center gap-3 mt-4">
             <a
@@ -122,7 +127,10 @@ function Footer() {
               { label: "حریم خصوصی", to: "/privacy" },
             ].map((item) => (
               <li key={item.to}>
-                <Link to={item.to} className="font-body text-paper/60 text-sm hover:text-paper transition-colors">
+                <Link
+                  to={item.to}
+                  className="font-body text-paper/60 text-sm hover:text-paper transition-colors"
+                >
                   {item.label}
                 </Link>
               </li>
@@ -163,8 +171,12 @@ function Footer() {
             © {new Date().getFullYear()} بوتیک شاهرخ. تمامی حقوق محفوظ است.
           </p>
           <div className="flex items-center gap-3">
-            <span className="font-body text-paper/40 text-xs">پرداخت امن با</span>
-            <div className="bg-paper/10 rounded px-2.5 py-1 text-[11px] font-body text-paper/70">زرین‌پال</div>
+            <span className="font-body text-paper/40 text-xs">
+              پرداخت امن با
+            </span>
+            <div className="bg-paper/10 rounded px-2.5 py-1 text-[11px] font-body text-paper/70">
+              زرین‌پال
+            </div>
           </div>
         </div>
       </div>

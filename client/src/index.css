@@ -9,6 +9,15 @@
   }
 }
 
+:root {
+  box-sizing: border-box;
+}
+
+body {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 @theme {
   --color-ink: #121212;
   --color-paper: #fafafa;

@@ -18,3 +18,12 @@ export const addressSchema = z.object({
 export const updateProfileSchema = z.object({
   name: z.string().min(2, "نام خانوادگی معتبر نیست").optional(),
 });
+
+export const changePasswordSchema = z.object({
+  currentPassword: z
+    .string({ required_error: "رمز عبور فعلی الزامی است" })
+    .min(1, "رمز عبور فعلی الزامی است"),
+  newPassword: z
+    .string({ required_error: "رمز عبور جدید الزامی است" })
+    .min(6, "رمز عبور جدید باید حداقل ۶ کاراکتر باشد"),
+});

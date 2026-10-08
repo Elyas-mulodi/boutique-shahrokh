@@ -1,13 +1,23 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ChevronLeft, Minus, Plus, ShoppingBag, ShieldCheck, RotateCcw, Truck } from "lucide-react";
+import {
+  ChevronLeft,
+  Minus,
+  Plus,
+  ShoppingBag,
+  ShieldCheck,
+  RotateCcw,
+  Truck,
+} from "lucide-react";
 import { getProductBySlug } from "../../services/productApi";
 import { addToCart } from "../../services/cartApi";
 import ErrorState from "../../components/ErrorState";
 import Gallery from "./Gallery";
 import VariantSelector from "./VariantSelector";
 import StickyAddBar from "./StickyAddBar";
+import { useDispatch } from "react-redux";
+import { fetchCart } from "../../redux/slices/cartSlice";
 
 function ProductDetailSkeleton() {
   return (
@@ -34,6 +44,7 @@ function ProductDetailPage() {
   const [addMessage, setAddMessage] = useState(null);
   const [barVisible, setBarVisible] = useState(false);
   const addButtonRef = useRef(null);
+  const dispatch = useDispatch();
 
   const fetchProduct = () => {
     setStatus("loading");
@@ -54,18 +65,33 @@ function ProductDetailPage() {
 
   useEffect(() => {
     if (!addButtonRef.current) return;
-    const observer = new IntersectionObserver(([entry]) => setBarVisible(!entry.isIntersecting), {
-      threshold: 0,
-    });
+    const observer = new IntersectionObserver(
+      ([entry]) => setBarVisible(!entry.isIntersecting),
+      {
+        threshold: 0,
+      },
+    );
     observer.observe(addButtonRef.current);
     return () => observer.disconnect();
   }, [status]);
 
-  if (status === "loading") return <div className="py-10"><ProductDetailSkeleton /></div>;
-  if (status === "failed") return <div className="py-16"><ErrorState message="خطا در دریافت محصول" onRetry={fetchProduct} /></div>;
+  if (status === "loading")
+    return (
+      <div className="py-10">
+        <ProductDetailSkeleton />
+      </div>
+    );
+  if (status === "failed")
+    return (
+      <div className="py-16">
+        <ErrorState message="خطا در دریافت محصول" onRetry={fetchProduct} />
+      </div>
+    );
   if (!product) return null;
 
-  const selectedVariant = product.variants.find((v) => v.color === selectedColor && v.size === selectedSize);
+  const selectedVariant = product.variants.find(
+    (v) => v.color === selectedColor && v.size === selectedSize,
+  );
   const canAdd = selectedVariant && selectedVariant.stock >= quantity;
   const maxQty = selectedVariant?.stock || 1;
 
@@ -74,13 +100,21 @@ function ProductDetailPage() {
     setAdding(true);
     setAddMessage(null);
     try {
-      await addToCart({ product: product._id, variantId: selectedVariant._id, quantity });
+      await addToCart({
+        product: product._id,
+        variantId: selectedVariant._id,
+        quantity,
+      });
+      dispatch(fetchCart());
       setAddMessage({ type: "success", text: "به سبد خرید اضافه شد" });
     } catch (err) {
       const status = err?.response?.status;
       setAddMessage({
         type: "error",
-        text: status === 401 ? "ابتدا وارد حساب کاربری شوید" : "خطا در افزودن به سبد خرید",
+        text:
+          status === 401
+            ? "ابتدا وارد حساب کاربری شوید"
+            : "خطا در افزودن به سبد خرید",
       });
     } finally {
       setAdding(false);
@@ -91,11 +125,16 @@ function ProductDetailPage() {
     <div className="py-8 md:py-10 pb-28 md:pb-10">
       {/* breadcrumb */}
       <div className="flex items-center gap-1.5 text-xs font-body text-ink/50 mb-6">
-        <Link to="/" className="hover:text-ink transition-colors">خانه</Link>
+        <Link to="/" className="hover:text-ink transition-colors">
+          خانه
+        </Link>
         <ChevronLeft size={12} />
         {product.category?.name && (
           <>
-            <Link to={`/category/${product.category.slug}`} className="hover:text-ink transition-colors">
+            <Link
+              to={`/category/${product.category.slug}`}
+              className="hover:text-ink transition-colors"
+            >
               {product.category.name}
             </Link>
             <ChevronLeft size={12} />
@@ -112,13 +151,17 @@ function ProductDetailPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <h1 className="font-heading text-ink text-2xl md:text-3xl font-bold">{product.name}</h1>
+          <h1 className="font-heading text-ink text-2xl md:text-3xl font-bold">
+            {product.name}
+          </h1>
           <p className="font-heading text-ink text-xl font-bold mt-3">
             {product.price.toLocaleString("fa-IR")} تومان
           </p>
 
           {product.description && (
-            <p className="font-body text-ink/60 text-sm leading-7 mt-4">{product.description}</p>
+            <p className="font-body text-ink/60 text-sm leading-7 mt-4">
+              {product.description}
+            </p>
           )}
 
           <div className="mt-6">
@@ -142,7 +185,9 @@ function ProductDetailPage() {
               >
                 <Minus size={15} />
               </button>
-              <span className="w-8 text-center font-body text-ink">{quantity}</span>
+              <span className="w-8 text-center font-body text-ink">
+                {quantity}
+              </span>
               <button
                 onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
                 className="w-10 h-10 flex items-center justify-center text-ink disabled:opacity-30"
@@ -161,7 +206,11 @@ function ProductDetailPage() {
               className="w-full md:w-auto md:px-10 flex items-center justify-center gap-2 bg-ink text-paper font-body font-bold py-3.5 rounded-full hover:bg-blue transition-colors disabled:opacity-40"
             >
               <ShoppingBag size={18} />
-              {!selectedColor || !selectedSize ? "رنگ و سایز را انتخاب کنید" : adding ? "در حال افزودن..." : "افزودن به سبد خرید"}
+              {!selectedColor || !selectedSize
+                ? "رنگ و سایز را انتخاب کنید"
+                : adding
+                  ? "در حال افزودن..."
+                  : "افزودن به سبد خرید"}
             </button>
 
             {addMessage && (
@@ -182,16 +231,26 @@ function ProductDetailPage() {
               { icon: RotateCcw, text: "۷ روز مهلت بازگشت" },
               { icon: ShieldCheck, text: "پرداخت امن" },
             ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex flex-col items-center gap-1.5 text-center">
+              <div
+                key={text}
+                className="flex flex-col items-center gap-1.5 text-center"
+              >
                 <Icon size={18} className="text-ink/50" />
-                <span className="font-body text-[11px] text-ink/50">{text}</span>
+                <span className="font-body text-[11px] text-ink/50">
+                  {text}
+                </span>
               </div>
             ))}
           </div>
         </motion.div>
       </div>
 
-      <StickyAddBar visible={barVisible && canAdd} price={product.price} onAdd={handleAddToCart} disabled={adding} />
+      <StickyAddBar
+        visible={barVisible && canAdd}
+        price={product.price}
+        onAdd={handleAddToCart}
+        disabled={adding}
+      />
     </div>
   );
 }

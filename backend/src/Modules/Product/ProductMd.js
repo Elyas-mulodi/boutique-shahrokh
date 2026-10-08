@@ -8,7 +8,7 @@ const variantSchema = new Schema(
     color: { type: String, required: true },
     stock: { type: Number, required: true, min: 0, default: 0 },
   },
-  { _id: true },
+  { _id: true }
 );
 
 const productSchema = new Schema(
@@ -39,14 +39,14 @@ const productSchema = new Schema(
     },
     isActive: { type: Boolean, default: true },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 productSchema.index({ name: "text", description: "text" });
 productSchema.index({ category: 1 });
 
 productSchema.virtual("totalStock").get(function () {
-  return this.variants.reduce((sum, v) => sum + v.stock, 0);
+  return (this.variants || []).reduce((sum, v) => sum + v.stock, 0);
 });
 productSchema.set("toJSON", { virtuals: true });
 

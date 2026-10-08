@@ -7,6 +7,7 @@ import { protect, authorize } from "../../Middlewares/auth.js";
 const router = express.Router();
 
 router.get("/", CategoryCn.getTree); // عمومی
+router.get("/:slug", CategoryCn.getBySlug); // عمومی
 
 router.use(protect, authorize("admin"));
 router.post("/", validate(createCategorySchema), CategoryCn.create);

@@ -48,3 +48,24 @@ export const remove = asyncHandler(async (req, res) => {
 
   new ApiResponse(200, null, "دسته‌بندی حذف شد").send(res);
 });
+
+export const getBySlug = asyncHandler(async (req, res) => {
+  const category = await CategoryMd.findOne({ slug: req.params.slug, isActive: true }).lean();
+  if (!category) throw ApiError.notFound("دسته‌بندی یافت نشد");
+
+  const children = await CategoryMd.find({ parent: category._id, isActive: true }).lean();
+
+  // مسیر والدها (از ریشه تا والد مستقیم) برای breadcrumb
+  const ancestors = [];
+  let current = category;
+  let depth = 0;
+  while (current.parent && depth < 10) {
+    const parent = await CategoryMd.findById(current.parent).select("name slug parent").lean();
+    if (!parent) break;
+    ancestors.unshift({ _id: parent._id, name: parent.name, slug: parent.slug });
+    current = parent;
+    depth += 1;
+  }
+
+  new ApiResponse(200, { category, children, ancestors }, "دسته‌بندی").send(res);
+});

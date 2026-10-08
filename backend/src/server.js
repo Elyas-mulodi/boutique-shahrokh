@@ -3,6 +3,7 @@ import env from "./Config/env.js";
 import connectDB from "./Config/db.js";
 import logger from "./Config/logger.js";
 import { startCancelUnpaidOrdersJob } from "./Jobs/cancelUnpaidOrders.js";
+import { startDeleteStaleUnpaidOrdersJob } from "./Jobs/deleteStaleUnpaidOrders.js";
 
 async function start() {
   await connectDB();
@@ -14,6 +15,7 @@ async function start() {
   });
 
   startCancelUnpaidOrdersJob();
+  startDeleteStaleUnpaidOrdersJob();
 
   process.on("unhandledRejection", (err) => {
     logger.error(`Unhandled Rejection: ${err.message}`);
