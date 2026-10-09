@@ -1,7 +1,22 @@
 import { motion } from "framer-motion";
 
-function VariantSelector({ variants, selectedColor, selectedSize, onSelectColor, onSelectSize }) {
-  const colors = [...new Set(variants.map((v) => v.color))];
+const FALLBACK_DOT = "#D4D4D8";
+
+function VariantSelector({
+  variants,
+  selectedColor,
+  selectedSize,
+  onSelectColor,
+  onSelectSize,
+  idPrefix = "pdp",
+}) {
+  const colorMap = new Map();
+  variants.forEach((v) => {
+    if (!colorMap.has(v.color) || (!colorMap.get(v.color) && v.colorHex)) {
+      colorMap.set(v.color, v.colorHex || null);
+    }
+  });
+  const colors = [...colorMap].map(([name, hex]) => ({ name, hex }));
   const sizes = [...new Set(variants.map((v) => v.size))];
 
   const isSizeAvailable = (size) => {
@@ -17,26 +32,31 @@ function VariantSelector({ variants, selectedColor, selectedSize, onSelectColor,
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="font-body font-bold text-ink text-sm mb-3">رنگ</h3>
+        <h3 className="font-body font-bold text-ink text-sm mb-3">
+          رنگ
+          {selectedColor && <span className="font-normal text-ink/50 mr-2">{selectedColor}</span>}
+        </h3>
         <div className="flex items-center gap-2.5">
-          {colors.map((color) => {
-            const available = isColorAvailable(color);
-            const selected = selectedColor === color;
+          {colors.map(({ name, hex }) => {
+            const available = isColorAvailable(name);
+            const selected = selectedColor === name;
             return (
               <button
-                key={color}
+                key={name}
+                type="button"
                 disabled={!available}
-                onClick={() => onSelectColor(color)}
+                onClick={() => onSelectColor(name)}
                 className="relative w-9 h-9 rounded-full disabled:opacity-25 disabled:cursor-not-allowed"
-                aria-label={color}
+                aria-label={name}
+                title={name}
               >
                 <span
-                  className="absolute inset-1 rounded-full border border-ink/10"
-                  style={{ backgroundColor: color }}
+                  className="absolute inset-1 rounded-full border border-ink/15"
+                  style={{ backgroundColor: hex || FALLBACK_DOT }}
                 />
                 {selected && (
                   <motion.span
-                    layoutId="colorRing"
+                    layoutId={`colorRing-${idPrefix}`}
                     className="absolute inset-0 rounded-full border-2 border-blue"
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
@@ -56,6 +76,7 @@ function VariantSelector({ variants, selectedColor, selectedSize, onSelectColor,
             return (
               <button
                 key={size}
+                type="button"
                 disabled={!available}
                 onClick={() => onSelectSize(size)}
                 className={`relative min-w-11 h-11 px-3 rounded-xl border font-body text-sm transition-colors ${

@@ -1,20 +1,48 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ShoppingBag, ImageOff } from "lucide-react";
+import QuickAddSheet from "./QuickAdd/QuickAddSheet";
+
+const FALLBACK_DOT = "#D4D4D8";
+
+function ColorDots({ colors, className = "" }) {
+  return (
+    <div className={`items-center gap-1.5 ${className}`}>
+      {colors.map((c) => (
+        <span
+          key={c.name}
+          title={c.name}
+          className="w-3.5 h-3.5 rounded-full border border-ink/15"
+          style={{ backgroundColor: c.hex || FALLBACK_DOT }}
+        />
+      ))}
+    </div>
+  );
+}
 
 function ProductCard({ product }) {
   const [hovered, setHovered] = useState(false);
-  const {
-    name,
-    slug,
-    price,
-    discountPrice,
-    images,
-    colors = [],
-    isNew,
-  } = product;
+  const [quickOpen, setQuickOpen] = useState(false);
+  const closeQuick = useCallback(() => setQuickOpen(false), []);
+
+  const { name, slug, price, discountPrice, images, variants = [], isNew } = product;
   const hasDiscount = discountPrice && discountPrice < price;
+  const inStock = variants.some((v) => v.stock > 0);
+
+  const colors = useMemo(() => {
+    const map = new Map();
+    variants.forEach((v) => {
+      if (v.stock > 0 && !map.has(v.color)) map.set(v.color, v.colorHex || null);
+    });
+    return [...map].map(([colorName, hex]) => ({ name: colorName, hex }));
+  }, [variants]);
+
+  const openQuick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setQuickOpen(true);
+  };
 
   return (
     <motion.div
@@ -25,16 +53,14 @@ function ProductCard({ product }) {
       className="group relative rounded-2xl overflow-hidden bg-paper shadow-sm hover:shadow-xl transition-shadow duration-300"
     >
       <Link to={`/product/${slug}`} className="block">
+        {/* تصویر + تعویض با هاور، یا placeholder اگه عکس نباشه */}
         <div className="relative aspect-[3/4] overflow-hidden bg-ink/5">
           {images?.[0] ? (
             <>
               <motion.img
                 src={images[0]}
                 alt={name}
-                animate={{
-                  opacity: hovered && images?.[1] ? 0 : 1,
-                  scale: hovered ? 1.06 : 1,
-                }}
+                animate={{ opacity: hovered && images?.[1] ? 0 : 1, scale: hovered ? 1.06 : 1 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
                 className="absolute inset-0 w-full h-full object-cover"
               />
@@ -42,10 +68,7 @@ function ProductCard({ product }) {
                 <motion.img
                   src={images[1]}
                   alt={`${name} - دوم`}
-                  animate={{
-                    opacity: hovered ? 1 : 0,
-                    scale: hovered ? 1.06 : 1,
-                  }}
+                  animate={{ opacity: hovered ? 1 : 0, scale: hovered ? 1.06 : 1 }}
                   transition={{ duration: 0.4, ease: "easeOut" }}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
@@ -69,24 +92,30 @@ function ProductCard({ product }) {
             </div>
           )}
 
-          {/* دکمه افزودن به سبد */}
-          <motion.button
-            initial={false}
-            animate={{ y: hovered ? 0 : 60, opacity: hovered ? 1 : 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            onClick={(e) => e.preventDefault()}
-            className="md:absolute hidden md:flex bottom-3 left-3 right-3 bg-ink text-paper font-body text-sm py-2.5 rounded-full items-center justify-center gap-2 hover:bg-blue transition-colors"
-          >
-            <ShoppingBag size={16} />
-            افزودن به سبد
-          </motion.button>
+          {/* دکمه افزودن به سبد - دسکتاپ، با هاور */}
+          {inStock ? (
+            <motion.button
+              type="button"
+              initial={false}
+              animate={{ y: hovered ? 0 : 60, opacity: hovered ? 1 : 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              onClick={openQuick}
+              className="hidden md:flex absolute bottom-3 left-3 right-3 bg-ink text-paper font-body text-sm py-2.5 rounded-full items-center justify-center gap-2 hover:bg-blue transition-colors"
+            >
+              <ShoppingBag size={16} />
+              افزودن به سبد
+            </motion.button>
+          ) : (
+            <div className="hidden md:block absolute bottom-3 right-3 left-3 text-center bg-ink/70 text-paper font-body text-xs py-2 rounded-full">
+              ناموجود
+            </div>
+          )}
         </div>
 
         {/* اطلاعات محصول */}
         <div className="p-3">
           <h3 className="font-body text-ink text-sm line-clamp-1">{name}</h3>
 
-          {/* قیمت */}
           <div className="flex items-center gap-2 mt-1.5">
             {hasDiscount ? (
               <>
@@ -110,46 +139,41 @@ function ProductCard({ product }) {
             )}
           </div>
 
-          {/* دایره‌های رنگ - با هاور از پایین میان بالا (فقط دسکتاپ)، تو موبایل همیشه نمایش */}
           {colors.length > 0 && (
-            <motion.div
-              initial={false}
-              animate={{
-                opacity: hovered ? 1 : 0,
-                y: hovered ? 0 : 10,
-              }}
-              transition={{ duration: 0.25 }}
-              className="hidden md:flex items-center gap-1.5 mt-2"
-            >
-              {colors.map((c) => (
-                <span
-                  key={c}
-                  className="w-3.5 h-3.5 rounded-full border border-ink/15"
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </motion.div>
+            <>
+              {/* دسکتاپ: با هاور از پایین میان بالا */}
+              <motion.div
+                initial={false}
+                animate={{ opacity: hovered ? 1 : 0, y: hovered ? 0 : 10 }}
+                transition={{ duration: 0.25 }}
+                className="hidden md:block mt-2"
+              >
+                <ColorDots colors={colors} className="flex" />
+              </motion.div>
+              {/* موبایل: همیشه نمایش */}
+              <ColorDots colors={colors} className="flex md:hidden mt-2" />
+            </>
           )}
-          <div className="flex md:hidden items-center gap-1.5 mt-2">
-            {colors.map((c) => (
-              <span
-                key={c}
-                className="w-3.5 h-3.5 rounded-full border border-ink/15"
-                style={{ backgroundColor: c }}
-              />
-            ))}
-          </div>
         </div>
       </Link>
 
-      {/* دکمه افزودن به سبد - همیشه نمایش در موبایل */}
-      <button
-        onClick={(e) => e.preventDefault()}
-        className="md:hidden w-full bg-ink text-paper font-body text-xs py-2.5 flex items-center justify-center gap-1.5"
-      >
-        <ShoppingBag size={14} />
-        افزودن به سبد
-      </button>
+      {/* دکمه پایین کارت - فقط موبایل */}
+      {inStock ? (
+        <button
+          type="button"
+          onClick={openQuick}
+          className="md:hidden w-full bg-ink text-paper font-body text-xs py-2.5 flex items-center justify-center gap-1.5"
+        >
+          <ShoppingBag size={14} />
+          افزودن به سبد
+        </button>
+      ) : (
+        <div className="md:hidden w-full bg-ink/10 text-ink/50 font-body text-xs py-2.5 text-center">
+          ناموجود
+        </div>
+      )}
+
+      <QuickAddSheet product={product} open={quickOpen} onClose={closeQuick} />
     </motion.div>
   );
 }

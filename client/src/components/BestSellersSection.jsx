@@ -10,15 +10,21 @@ import { fetchBestSellers } from "../redux/slices/productSlice";
 function BestSellersSection() {
   const scrollRef = useRef(null);
   const dispatch = useDispatch();
-  const { bestSellers, bestSellersStatus, bestSellersError } = useSelector((state) => state.products);
+  const { bestSellers, bestSellersStatus, bestSellersError } = useSelector(
+    (state) => state.products,
+  );
 
   const scrollByAmount = (dir) => {
     if (!scrollRef.current) return;
     const amount = scrollRef.current.clientWidth * 0.7;
-    scrollRef.current.scrollBy({ left: dir === "next" ? -amount : amount, behavior: "smooth" });
+    scrollRef.current.scrollBy({
+      left: dir === "next" ? -amount : amount,
+      behavior: "smooth",
+    });
   };
 
-  const loading = bestSellersStatus === "loading" || bestSellersStatus === "idle";
+  const loading =
+    bestSellersStatus === "loading" || bestSellersStatus === "idle";
   const error = bestSellersStatus === "failed";
 
   return (
@@ -26,7 +32,9 @@ function BestSellersSection() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <TrendingUp size={20} className="text-blue" />
-          <h2 className="font-heading text-ink text-xl md:text-2xl font-bold">پرفروش‌ترین‌ها</h2>
+          <h2 className="font-heading text-ink text-xl md:text-2xl font-bold">
+            پرفروش‌ترین‌ها
+          </h2>
         </div>
 
         {/* دکمه‌های ناوبری - فقط دسکتاپ */}
@@ -51,7 +59,10 @@ function BestSellersSection() {
       </div>
 
       {error ? (
-        <ErrorState message="خطا در دریافت پرفروش‌ترین‌ها" onRetry={() => dispatch(fetchBestSellers())} />
+        <ErrorState
+          message="خطا در دریافت پرفروش‌ترین‌ها"
+          onRetry={() => dispatch(fetchBestSellers())}
+        />
       ) : loading ? (
         <div className="flex gap-4 overflow-x-auto no-scrollbar">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -61,7 +72,9 @@ function BestSellersSection() {
           ))}
         </div>
       ) : bestSellers.length === 0 ? (
-        <p className="text-center text-ink/50 font-body py-12">هنوز داده‌ی فروشی ثبت نشده است</p>
+        <p className="text-center text-ink/50 font-body py-12">
+          هنوز داده‌ی فروشی ثبت نشده است
+        </p>
       ) : (
         <div
           ref={scrollRef}
@@ -80,16 +93,7 @@ function BestSellersSection() {
               <span className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-ink text-paper text-xs font-bold flex items-center justify-center font-body">
                 {i + 1}
               </span>
-              <ProductCard
-                product={{
-                  _id: product._id,
-                  name: product.name,
-                  slug: product.slug,
-                  price: product.price,
-                  images: product.images,
-                  colors: [],
-                }}
-              />
+              <ProductCard product={product} />
             </motion.div>
           ))}
         </div>

@@ -17,18 +17,24 @@ function CartItemRow({ item, isMutating }) {
     >
       <div className="w-20 h-24 rounded-xl overflow-hidden bg-ink/5 flex-shrink-0">
         {item.product?.images?.[0] && (
-          <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover" />
+          <img
+            src={item.product.images[0]}
+            alt={item.product.name}
+            className="w-full h-full object-cover"
+          />
         )}
       </div>
 
       <div className="flex-1 flex flex-col justify-between">
         <div>
-          <h3 className="font-body text-ink text-sm font-bold">{item.product?.name}</h3>
-          <p className="font-body text-ink/50 text-xs mt-1">
-            سایز: {item.size} • رنگ:
+          <h3 className="font-body text-ink text-sm font-bold">
+            {item.product?.name}
+          </h3>
+          <p className="font-body text-ink/50 text-xs mt-1 flex items-center gap-1.5">
+            سایز: {item.size} • رنگ: {item.color}
             <span
-              className="inline-block w-3 h-3 rounded-full border border-ink/15 mr-1 align-middle"
-              style={{ backgroundColor: item.color }}
+              className="inline-block w-3 h-3 rounded-full border border-ink/15"
+              style={{ backgroundColor: item.colorHex || "#D4D4D8" }}
             />
           </p>
         </div>
@@ -37,15 +43,31 @@ function CartItemRow({ item, isMutating }) {
           <div className="inline-flex items-center border border-ink/15 rounded-full">
             <button
               disabled={isMutating}
-              onClick={() => dispatch(changeItemQuantity({ itemId: item._id, quantity: Math.max(1, item.quantity - 1) }))}
+              onClick={() =>
+                dispatch(
+                  changeItemQuantity({
+                    itemId: item._id,
+                    quantity: Math.max(1, item.quantity - 1),
+                  }),
+                )
+              }
               className="w-8 h-8 flex items-center justify-center text-ink disabled:opacity-30"
             >
               <Minus size={13} />
             </button>
-            <span className="w-7 text-center font-body text-sm text-ink">{item.quantity}</span>
+            <span className="w-7 text-center font-body text-sm text-ink">
+              {item.quantity}
+            </span>
             <button
               disabled={isMutating}
-              onClick={() => dispatch(changeItemQuantity({ itemId: item._id, quantity: item.quantity + 1 }))}
+              onClick={() =>
+                dispatch(
+                  changeItemQuantity({
+                    itemId: item._id,
+                    quantity: item.quantity + 1,
+                  }),
+                )
+              }
               className="w-8 h-8 flex items-center justify-center text-ink disabled:opacity-30"
             >
               <Plus size={13} />
