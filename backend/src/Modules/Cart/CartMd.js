@@ -5,11 +5,12 @@ const { Schema } = mongoose;
 const cartItemSchema = new Schema(
   {
     product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
-    variantId: { type: Schema.Types.ObjectId, required: true }, 
+    variantId: { type: Schema.Types.ObjectId, required: true },
     size: { type: String, required: true },
     color: { type: String, required: true },
     quantity: { type: Number, required: true, min: 1 },
     price: { type: Number, required: true },
+    colorHex: { type: String, default: null },
   },
   { _id: true }
 );

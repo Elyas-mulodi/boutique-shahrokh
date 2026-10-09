@@ -4,6 +4,10 @@ const variantSchema = z.object({
   size: z.string({ required_error: "سایز الزامی است" }),
   color: z.string({ required_error: "رنگ الزامی است" }),
   stock: z.number({ required_error: "موجودی الزامی است" }).min(0),
+  colorHex: z
+    .string()
+    .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "کد رنگ معتبر نیست")
+    .optional(),
 });
 
 export const createProductSchema = z.object({

@@ -38,6 +38,7 @@ export const addItem = asyncHandler(async (req, res) => {
       variantId,
       size: variant.size,
       color: variant.color,
+      colorHex: variant.colorHex || null,
       quantity,
       price: product.price,
     });

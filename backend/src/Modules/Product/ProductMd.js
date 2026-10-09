@@ -7,6 +7,11 @@ const variantSchema = new Schema(
     size: { type: String, required: true },
     color: { type: String, required: true },
     stock: { type: Number, required: true, min: 0, default: 0 },
+    colorHex: {
+  type: String,
+  default: null,
+  match: [/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "کد رنگ معتبر نیست"],
+},
   },
   { _id: true }
 );

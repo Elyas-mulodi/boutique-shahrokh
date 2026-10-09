@@ -5,14 +5,36 @@ import CategoryMd from "../Modules/Category/CategoryMd.js";
 import ProductMd from "../Modules/Product/ProductMd.js";
 import mongoose from "mongoose";
 
+import CartMd from "../Modules/Cart/CartMd.js";
+import OrderMd from "../Modules/Order/OrderMd.js";
+
+const COLOR_HEX = {
+  مشکی: "#121212",
+  سفید: "#FAFAFA",
+  آبی: "#2D4FFF",
+  طوسی: "#9CA3AF",
+  صورتی: "#F4A6C0",
+  قهوه‌ای: "#7B4B2A",
+};
+
+const withHex = (variants) => variants.map((v) => ({ ...v, colorHex: COLOR_HEX[v.color] || null }));
 const sampleImage = (seed) => `https://picsum.photos/seed/${seed}/600/800`;
 
 async function seed() {
+  if (env.NODE_ENV === "production") {
+    console.error("❌ اجرای seed در production مجاز نیست");
+    process.exit(1);
+  }
   await connectDB();
 
   console.log("🧹 پاک‌سازی داده‌های قبلی...");
-  await Promise.all([UserMd.deleteMany({}), CategoryMd.deleteMany({}), ProductMd.deleteMany({})]);
-
+  await Promise.all([
+    UserMd.deleteMany({}),
+    CategoryMd.deleteMany({}),
+    ProductMd.deleteMany({}),
+    CartMd.deleteMany({}),
+    OrderMd.deleteMany({}),
+  ]);
   // ---------- ادمین ----------
   console.log("👤 ساخت کاربر ادمین...");
   const admin = await UserMd.create({
@@ -153,8 +175,7 @@ async function seed() {
     },
   ];
 
-  await ProductMd.insertMany(productsData);
-
+  await ProductMd.insertMany(productsData.map((p) => ({ ...p, variants: withHex(p.variants) })));
   console.log(
     `✅ انجام شد: ${productsData.length} محصول، ${categoriesData.length + 2} دسته‌بندی، ۱ ادمین`
   );
