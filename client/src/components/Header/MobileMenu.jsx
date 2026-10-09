@@ -16,12 +16,18 @@ import {
 } from "lucide-react";
 import ErrorState from "../ErrorState";
 import { fetchCategories } from "../../redux/slices/categorySlice";
-
+import { STORE } from "../../constants/storeInfo";
 const panelVariants = {
   hidden: { x: "100%" },
   visible: {
     x: 0,
-    transition: { type: "spring", stiffness: 300, damping: 32, when: "beforeChildren", staggerChildren: 0.05 },
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 32,
+      when: "beforeChildren",
+      staggerChildren: 0.05,
+    },
   },
   exit: { x: "100%", transition: { duration: 0.25, ease: "easeIn" } },
 };
@@ -53,7 +59,15 @@ function MenuLink({ to, icon: Icon, children, onClick, badge = 0 }) {
   );
 }
 
-function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCount, onLogout }) {
+function MobileMenu({
+  open,
+  onClose,
+  categories,
+  categoriesStatus,
+  user,
+  cartCount,
+  onLogout,
+}) {
   const dispatch = useDispatch();
   const [catsOpen, setCatsOpen] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
@@ -73,7 +87,8 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
     }
   }, [open]);
 
-  const isLoading = categoriesStatus === "loading" || categoriesStatus === "idle";
+  const isLoading =
+    categoriesStatus === "loading" || categoriesStatus === "idle";
 
   return (
     <AnimatePresence>
@@ -100,7 +115,11 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
           >
             <div className="flex items-center justify-between px-5 h-16 border-b border-ink/10 flex-shrink-0">
               <span className="font-heading text-ink text-lg">بوتیک شاهرخ</span>
-              <button onClick={onClose} aria-label="بستن منو" className="text-ink">
+              <button
+                onClick={onClose}
+                aria-label="بستن منو"
+                className="text-ink"
+              >
                 <X size={24} />
               </button>
             </div>
@@ -114,8 +133,13 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
                       {user.name?.[0] || "؟"}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-body font-bold text-ink text-sm truncate">{user.name}</p>
-                      <p className="font-body text-ink/50 text-xs mt-0.5" dir="ltr">
+                      <p className="font-body font-bold text-ink text-sm truncate">
+                        {user.name}
+                      </p>
+                      <p
+                        className="font-body text-ink/50 text-xs mt-0.5"
+                        dir="ltr"
+                      >
                         {user.phone}
                       </p>
                     </div>
@@ -136,7 +160,10 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
               </MenuLink>
 
               {/* دسته‌بندی‌ها - آکاردئون */}
-              <motion.div variants={itemVariants} className="border-b border-ink/10">
+              <motion.div
+                variants={itemVariants}
+                className="border-b border-ink/10"
+              >
                 <button
                   onClick={() => setCatsOpen((v) => !v)}
                   aria-expanded={catsOpen}
@@ -146,7 +173,10 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
                     <LayoutGrid size={19} className="text-ink/50" />
                     دسته‌بندی‌ها
                   </span>
-                  <motion.span animate={{ rotate: catsOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                  <motion.span
+                    animate={{ rotate: catsOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
                     <ChevronDown size={17} className="text-ink/50" />
                   </motion.span>
                 </button>
@@ -164,7 +194,10 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
                         {isLoading ? (
                           <div className="space-y-3 py-2 animate-pulse">
                             {Array.from({ length: 4 }).map((_, i) => (
-                              <div key={i} className="h-4 bg-ink/10 rounded w-1/2" />
+                              <div
+                                key={i}
+                                className="h-4 bg-ink/10 rounded w-1/2"
+                              />
                             ))}
                           </div>
                         ) : categoriesStatus === "failed" ? (
@@ -185,13 +218,20 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
                                 </Link>
                                 {cat.children?.length > 0 && (
                                   <button
-                                    onClick={() => setExpandedId(expandedId === cat._id ? null : cat._id)}
+                                    onClick={() =>
+                                      setExpandedId(
+                                        expandedId === cat._id ? null : cat._id,
+                                      )
+                                    }
                                     aria-label={`زیردسته‌های ${cat.name}`}
                                     className="p-2 text-ink/40"
                                   >
                                     <motion.span
                                       className="block"
-                                      animate={{ rotate: expandedId === cat._id ? 180 : 0 }}
+                                      animate={{
+                                        rotate:
+                                          expandedId === cat._id ? 180 : 0,
+                                      }}
                                       transition={{ duration: 0.2 }}
                                     >
                                       <ChevronDown size={15} />
@@ -201,26 +241,27 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
                               </div>
 
                               <AnimatePresence initial={false}>
-                                {expandedId === cat._id && cat.children?.length > 0 && (
-                                  <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: "auto", opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="overflow-hidden pr-4"
-                                  >
-                                    {cat.children.map((child) => (
-                                      <Link
-                                        key={child._id}
-                                        to={`/category/${child.slug}`}
-                                        onClick={onClose}
-                                        className="block py-2 text-sm font-body text-ink/50"
-                                      >
-                                        {child.name}
-                                      </Link>
-                                    ))}
-                                  </motion.div>
-                                )}
+                                {expandedId === cat._id &&
+                                  cat.children?.length > 0 && (
+                                    <motion.div
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: "auto", opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                      transition={{ duration: 0.2 }}
+                                      className="overflow-hidden pr-4"
+                                    >
+                                      {cat.children.map((child) => (
+                                        <Link
+                                          key={child._id}
+                                          to={`/category/${child.slug}`}
+                                          onClick={onClose}
+                                          className="block py-2 text-sm font-body text-ink/50"
+                                        >
+                                          {child.name}
+                                        </Link>
+                                      ))}
+                                    </motion.div>
+                                  )}
                               </AnimatePresence>
                             </div>
                           ))
@@ -231,7 +272,12 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
                 </AnimatePresence>
               </motion.div>
 
-              <MenuLink to="/cart" icon={ShoppingBag} badge={cartCount} onClick={onClose}>
+              <MenuLink
+                to="/cart"
+                icon={ShoppingBag}
+                badge={cartCount}
+                onClick={onClose}
+              >
                 سبد خرید
               </MenuLink>
 
@@ -240,7 +286,11 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
                   <MenuLink to="/profile" icon={User} onClick={onClose}>
                     حساب کاربری
                   </MenuLink>
-                  <MenuLink to="/profile?tab=orders" icon={Package} onClick={onClose}>
+                  <MenuLink
+                    to="/profile?tab=orders"
+                    icon={Package}
+                    onClick={onClose}
+                  >
                     سفارش‌های من
                   </MenuLink>
                 </>
@@ -252,9 +302,12 @@ function MobileMenu({ open, onClose, categories, categoriesStatus, user, cartCou
             </div>
 
             <div className="px-5 py-4 border-t border-ink/10 flex-shrink-0 space-y-3">
-              <a href="tel:02112345678" className="flex items-center gap-2 text-sm text-ink/60 font-body">
+              <a
+                href={`tel:${STORE.phone}`}
+                className="flex items-center gap-2 text-sm text-ink/60 font-body"
+              >
                 <Phone size={15} />
-                <span dir="ltr">021-12345678</span>
+                <span dir="ltr">{STORE.phoneDisplay}</span>
               </a>
               {user && (
                 <button

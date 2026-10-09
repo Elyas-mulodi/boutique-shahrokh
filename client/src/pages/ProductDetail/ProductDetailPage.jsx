@@ -1,15 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  ChevronLeft,
-  Minus,
-  Plus,
-  ShoppingBag,
-  ShieldCheck,
-  RotateCcw,
-  Truck,
-} from "lucide-react";
 import { getProductBySlug } from "../../services/productApi";
 import { addToCart } from "../../services/cartApi";
 import ErrorState from "../../components/ErrorState";
@@ -18,6 +9,15 @@ import VariantSelector from "./VariantSelector";
 import StickyAddBar from "./StickyAddBar";
 import { useDispatch } from "react-redux";
 import { fetchCart } from "../../redux/slices/cartSlice";
+import {
+  ChevronLeft,
+  Minus,
+  Plus,
+  ShoppingBag,
+  ShieldCheck,
+  Headphones,
+  Truck,
+} from "lucide-react";
 
 function ProductDetailSkeleton() {
   return (
@@ -227,8 +227,8 @@ function ProductDetailPage() {
           {/* بج‌های اطمینان */}
           <div className="grid grid-cols-3 gap-3 mt-8 pt-6 border-t border-ink/10">
             {[
-              { icon: Truck, text: "ارسال سریع" },
-              { icon: RotateCcw, text: "۷ روز مهلت بازگشت" },
+              { icon: Truck, text: "ارسال به سراسر کشور" },
+              { icon: Headphones, text: "پشتیبانی تلفنی" },
               { icon: ShieldCheck, text: "پرداخت امن" },
             ].map(({ icon: Icon, text }) => (
               <div

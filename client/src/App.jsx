@@ -13,6 +13,13 @@ import Header from "./components/Header/Header";
 import ProfilePage from "./pages/Profile/ProfilePage";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 import CategoryPage from "./pages/Category/CategoryPage";
+import NotFoundPage from "./pages/Info/NotFoundPage";
+import PrivacyPage from "./pages/Info/PrivacyPage";
+import TermsPage from "./pages/Info/TermsPage";
+import FaqPage from "./pages/Info/FaqPage";
+import AboutPage from "./pages/Info/AboutPage";
+import ShippingPage from "./pages/Info/ShippingPage";
+import ContactPage from "./pages/Info/ContactPage";
 
 function App() {
   return (
@@ -96,6 +103,62 @@ function App() {
                   <CheckoutPage />
                 </div>
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contact"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <ContactPage />
+              </div>
+            }
+          />
+          <Route
+            path="/shipping"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <ShippingPage />
+              </div>
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <AboutPage />
+              </div>
+            }
+          />
+          <Route
+            path="/faq"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <FaqPage />
+              </div>
+            }
+          />
+          <Route
+            path="/terms"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <TermsPage />
+              </div>
+            }
+          />
+          <Route
+            path="/privacy"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <PrivacyPage />
+              </div>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <div className="max-w-7xl mx-auto px-4">
+                <NotFoundPage />
+              </div>
             }
           />
         </Routes>
