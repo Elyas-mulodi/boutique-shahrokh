@@ -5,7 +5,9 @@ import OrderMd from "../Order/OrderMd.js";
 import { markOrderPaidAndDeductStock } from "../Order/OrderCn.js";
 
 const BASE_URL = env.ZARINPAL_SANDBOX ? "https://sandbox.zarinpal.com" : "https://api.zarinpal.com";
-const STARTPAY_URL = env.ZARINPAL_SANDBOX ? "https://sandbox.zarinpal.com/pg/StartPay" : "https://www.zarinpal.com/pg/StartPay";
+const STARTPAY_URL = env.ZARINPAL_SANDBOX
+  ? "https://sandbox.zarinpal.com/pg/StartPay"
+  : "https://www.zarinpal.com/pg/StartPay";
 
 /**
  * درخواست پرداخت از زرین‌پال و دریافت Authority
@@ -78,8 +80,7 @@ export const verifyCallback = asyncHandler(async (req, res) => {
   const result = await verifyZarinpalPayment({ authority: Authority, amount: order.totalAmount });
 
   if (result?.data?.code === 100 || result?.data?.code === 101) {
-    order.paymentRefId = String(result.data.ref_id || "");
-    await markOrderPaidAndDeductStock(order);
+    await markOrderPaidAndDeductStock(order, String(result.data.ref_id || ""));
     return res.redirect(`${process.env.FRONTEND_URL || ""}/payment/success?orderId=${order._id}`);
   }
 

@@ -10,7 +10,9 @@ router.use(protect);
 
 router.post("/", validate(createOrderSchema), OrderCn.createOrder);
 router.get("/my", OrderCn.getMyOrders);
+router.get("/shipping-quote", OrderCn.getShippingQuote); 
 router.get("/:id", OrderCn.getOrderById);
+router.delete("/:id", OrderCn.deleteMyOrder);
 
 router.get("/", authorize("admin"), OrderCn.listAllOrders);
 router.patch("/:id/status", authorize("admin"), OrderCn.updateOrderStatus);

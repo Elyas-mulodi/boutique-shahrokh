@@ -14,18 +14,18 @@ import { requestZarinpalPayment } from "../Payment/PaymentCn.js";
  * ساخت سفارش از روی سبد خرید کاربر + درخواست پرداخت از زرین‌پال.
  * موجودی در این مرحله فقط چک میشه، کسر نمیشه (کسر موجودی بعد از پرداخت موفق انجام میشه).
  */
+import { calculateShipping } from "../../Config/shipping.js";
+
 export const createOrder = asyncHandler(async (req, res) => {
   const { address, couponCode } = req.body;
 
-  // ۱. سبد خرید کاربر رو بگیر
   const cart = await CartMd.findOne({ user: req.user._id });
   if (!cart || cart.items.length === 0) {
     throw ApiError.badRequest("سبد خرید شما خالی است");
   }
 
-  // ۲. موجودی هر آیتم رو چک کن (بدون کسر کردن)
+  // چک موجودی (بدون کسر) + ساخت آیتم‌های سفارش با اسم و عکس محصول
   const orderItems = [];
-
   for (const item of cart.items) {
     const product = await ProductMd.findById(item.product);
     if (!product || !product.isActive) {
@@ -47,22 +47,22 @@ export const createOrder = asyncHandler(async (req, res) => {
       price: item.price,
     });
   }
-  // ۳. مبلغ خام سفارش
+
   const rawAmount = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  // ۴. اگر کد تخفیف داده شده، اعتبارسنجی و محاسبه تخفیف
+  // تخفیف (روی قیمت کالاها اعمال میشه، نه روی هزینه ارسال)
   let discountAmount = 0;
   let couponDoc = null;
-
   if (couponCode) {
     const result = await validateAndCalculate(couponCode, rawAmount);
     discountAmount = result.discountAmount;
     couponDoc = result.coupon;
   }
 
-  const payableAmount = rawAmount - discountAmount;
+  // هزینه ارسال بر اساس شهر آدرس
+  const { zone, cost: shippingCost } = calculateShipping(address.city);
+  const payableAmount = rawAmount - discountAmount + shippingCost;
 
-  // ۵. ساخت سفارش با مبلغ نهایی (بعد از تخفیف)
   const order = await OrderMd.create({
     user: req.user._id,
     items: orderItems,
@@ -70,17 +70,16 @@ export const createOrder = asyncHandler(async (req, res) => {
     totalAmount: payableAmount,
     couponCode: couponDoc?.code || null,
     discountAmount,
+    shippingCost,
+    shippingZone: zone,
   });
 
-  // ۶. آدرس رو به‌عنوان پیش‌فرض روی پروفایل کاربر ذخیره کن
   await UserMd.findByIdAndUpdate(req.user._id, { defaultAddress: address });
 
-  // ۷. اگر کد تخفیف مصرف شد، شمارنده استفاده‌ش رو زیاد کن
   if (couponDoc) {
     await CouponMd.findByIdAndUpdate(couponDoc._id, { $inc: { usedCount: 1 } });
   }
 
-  // ۸. درخواست پرداخت از زرین‌پال با مبلغ نهایی
   const { authority, paymentUrl } = await requestZarinpalPayment({
     amount: payableAmount,
     description: `پرداخت سفارش بوتیک شاهرخ - شماره ${order._id}`,
@@ -92,9 +91,18 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   new ApiResponse(
     201,
-    { orderId: order._id, payableAmount, discountAmount, paymentUrl },
+    { orderId: order._id, payableAmount, discountAmount, shippingCost, paymentUrl },
     "سفارش ثبت شد، به درگاه پرداخت هدایت شوید"
   ).send(res);
+});
+
+// پیش‌نمایش هزینه ارسال برای صفحه Checkout
+export const getShippingQuote = asyncHandler(async (req, res) => {
+  const city = String(req.query.city || "").trim();
+  if (!city) throw ApiError.badRequest("شهر مقصد مشخص نشده است");
+
+  const { zone, cost, time } = calculateShipping(city);
+  new ApiResponse(200, { zone, cost, time }, "هزینه ارسال").send(res);
 });
 
 export const getMyOrders = asyncHandler(async (req, res) => {
@@ -150,46 +158,69 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   new ApiResponse(200, order, "وضعیت سفارش بروزرسانی شد").send(res);
 });
 
-// --- استفاده داخلی توسط PaymentCn بعد از تایید پرداخت ---
-export async function markOrderPaidAndDeductStock(order) {
-  const session = await mongoose.startSession();
-  try {
-    session.startTransaction();
 
-    for (const item of order.items) {
-      const updated = await ProductMd.findOneAndUpdate(
-        {
-          _id: item.product,
-          "variants._id": item.variantId,
-          "variants.stock": { $gte: item.quantity },
-        },
-        { $inc: { "variants.$.stock": -item.quantity } },
-        { new: true, session }
-      );
-      if (!updated) {
-        throw new Error(`STOCK_INSUFFICIENT:${item.product}`);
-      }
+export async function markOrderPaidAndDeductStock(order, paymentRefId = null) {
+  const claimed = await OrderMd.findOneAndUpdate(
+    { _id: order._id, paymentStatus: { $ne: "paid" } },
+    {
+      paymentStatus: "paid",
+      status: "processing",
+      ...(paymentRefId && { paymentRefId }),
+    },
+    { new: true }
+  );
+
+  if (!claimed) return { success: true, alreadyProcessed: true };
+
+  let stockFailed = false;
+
+  for (const item of claimed.items) {
+    const updated = await ProductMd.findOneAndUpdate(
+      {
+        _id: item.product,
+        variants: { $elemMatch: { _id: item.variantId, stock: { $gte: item.quantity } } },
+      },
+      { $inc: { "variants.$.stock": -item.quantity } }
+    );
+
+    if (!updated) {
+      stockFailed = true;
+      console.error(`⚠️ موجودی کافی نبود: سفارش ${claimed._id} - محصول ${item.product}`);
     }
-
-    order.status = "processing";
-    order.paymentStatus = "paid";
-    await order.save({ session });
-
-    await CartMd.findOneAndUpdate({ user: order.user }, { items: [] }, { session });
-
-    await session.commitTransaction();
-    return { success: true };
-  } catch (err) {
-    await session.abortTransaction();
-
-    // پرداخت انجام شده ولی کسر موجودی ممکن نشد → باید توسط ادمین دستی رسیدگی بشه (رفاند یا تامین کالا)
-    order.paymentStatus = "paid";
-    order.stockDeductionFailed = true;
-    await order.save();
-
-    console.error(`⚠️ CRITICAL: Stock deduction failed for paid order ${order._id}:`, err.message);
-    return { success: false, error: err.message };
-  } finally {
-    session.endSession();
   }
+
+  await OrderMd.updateOne(
+    { _id: claimed._id },
+    { stockDeducted: true, stockDeductionFailed: stockFailed }
+  );
+
+  try {
+    await CartMd.updateOne({ user: claimed.user }, { items: [] });
+  } catch (err) {
+    console.error(`خطا در خالی‌کردن سبد کاربر ${claimed.user}:`, err.message);
+  }
+
+  return { success: !stockFailed, stockFailed };
 }
+
+export const deleteMyOrder = asyncHandler(async (req, res) => {
+  const order = await OrderMd.findOne({ _id: req.params.id, user: req.user._id });
+  if (!order) throw ApiError.notFound("سفارش یافت نشد");
+
+  // شرط paymentStatus تو خود حذف چک میشه تا اگه همین لحظه پرداخت شد، حذف نشه
+  const removed = await OrderMd.findOneAndDelete({
+    _id: order._id,
+    paymentStatus: { $in: ["pending", "failed"] },
+  });
+  if (!removed) throw ApiError.badRequest("فقط سفارش‌های پرداخت‌نشده قابل حذف هستند");
+
+  // یک استفاده از کد تخفیف سفارش به کوپن برگردونده میشه
+  if (removed.couponCode) {
+    await CouponMd.updateOne(
+      { code: removed.couponCode, usedCount: { $gt: 0 } },
+      { $inc: { usedCount: -1 } }
+    );
+  }
+
+  new ApiResponse(200, null, "سفارش حذف شد").send(res);
+});

@@ -58,12 +58,15 @@ const orderSchema = new Schema(
     },
     couponCode: { type: String, default: null },
     discountAmount: { type: Number, default: 0 },
+    shippingCost: { type: Number, default: 0, min: 0 },
+    shippingZone: { type: String, enum: ["mashhad", "other"], default: null },
     // اطلاعات درگاه زرین‌پال
     paymentAuthority: { type: String, index: true }, // کد Authority دریافتی از زرین‌پال
     paymentRefId: { type: String, default: null }, // کد رهگیری پرداخت موفق (RefID)
 
     // اگر پرداخت موفق بود ولی کسر موجودی fail شد (نباید پیش بیاد، ولی برای رصد ادمین)
     stockDeductionFailed: { type: Boolean, default: false },
+    stockDeducted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
