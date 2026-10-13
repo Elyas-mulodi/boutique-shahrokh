@@ -11,6 +11,7 @@ router.get("/sales-chart", DashboardCn.getSalesChart);
 router.get("/top-products", DashboardCn.getTopProducts);
 router.get("/order-status", DashboardCn.getOrderStatusBreakdown);
 router.get("/sales-by-category", DashboardCn.getSalesByCategory);
+router.get("/sales-by-province", DashboardCn.getSalesByProvince);
 router.get("/recent-orders", DashboardCn.getRecentOrders);
 router.get("/low-stock", DashboardCn.getLowStockProducts);
 router.get("/top-customers", DashboardCn.getTopCustomers);

@@ -1,116 +1,206 @@
 import asyncHandler from "../../Utils/asyncHandler.js";
 import ApiResponse from "../../Utils/ApiResponse.js";
+import { toPositiveInt } from "../../Utils/text.js";
+import {
+  TEHRAN_TZ,
+  startOfTehranDay,
+  startOfJalaliMonth,
+  addDays,
+  tehranDateKey,
+} from "../../Utils/dateTehran.js";
 import OrderMd from "../Order/OrderMd.js";
 import UserMd from "../User/UserMd.js";
 import ProductMd from "../Product/ProductMd.js";
+import CategoryMd from "../Category/CategoryMd.js";
 
-const PAID_MATCH = { paymentStatus: "paid" };
+// سفارش‌هایی که تو آمار فروش حساب میشن: پرداخت‌شده و لغونشده
+const REVENUE_MATCH = { paymentStatus: "paid", status: { $ne: "canceled" } };
+const LOW_STOCK_THRESHOLD = 5;
 
-// ---------- ۱. خلاصه کلی (کارت‌های بالای داشبورد) ----------
+// days ارسال نشده یا نامعتبر → کل زمان
+function rangeMatch(daysParam) {
+  const days = toPositiveInt(daysParam, 0, 366);
+  if (!days) return {};
+  return { createdAt: { $gte: addDays(startOfTehranDay(), -(days - 1)) } };
+}
+
+async function totals(match) {
+  const [row] = await OrderMd.aggregate([
+    { $match: match },
+    { $group: { _id: null, revenue: { $sum: "$totalAmount" }, orders: { $sum: 1 } } },
+  ]);
+  return { revenue: row?.revenue || 0, orders: row?.orders || 0 };
+}
+
+const percentChange = (current, previous) =>
+  previous === 0 ? null : Math.round(((current - previous) / previous) * 1000) / 10;
+
+// ---------- ۱. خلاصه کلی ----------
 export const getOverview = asyncHandler(async (req, res) => {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const todayStart = startOfTehranDay(now);
+  const monthStart = startOfJalaliMonth(now);
+  const last30Start = addDays(todayStart, -29);
+  const prev30Start = addDays(todayStart, -59);
 
   const [
-    totalRevenueAgg,
-    todayRevenueAgg,
-    monthRevenueAgg,
-    totalOrders,
-    todayOrders,
-    pendingOrders,
-    totalUsers,
-    newUsersThisMonth,
-    totalProducts,
-    lowStockCount,
+    all,
+    today,
+    month,
+    last30,
+    prev30,
+    unpaidOrders,
+    processingOrders,
+    stockProblemOrders,
+    customersTotal,
+    newCustomersToday,
+    newCustomersMonth,
+    productsTotal,
+    productsActive,
+    stockAgg,
   ] = await Promise.all([
-    OrderMd.aggregate([{ $match: PAID_MATCH }, { $group: { _id: null, sum: { $sum: "$totalAmount" } } }]),
-    OrderMd.aggregate([
-      { $match: { ...PAID_MATCH, createdAt: { $gte: startOfToday } } },
-      { $group: { _id: null, sum: { $sum: "$totalAmount" } } },
-    ]),
-    OrderMd.aggregate([
-      { $match: { ...PAID_MATCH, createdAt: { $gte: startOfMonth } } },
-      { $group: { _id: null, sum: { $sum: "$totalAmount" } } },
-    ]),
-    OrderMd.countDocuments(PAID_MATCH),
-    OrderMd.countDocuments({ ...PAID_MATCH, createdAt: { $gte: startOfToday } }),
-    OrderMd.countDocuments({ status: "pending_payment" }),
+    totals(REVENUE_MATCH),
+    totals({ ...REVENUE_MATCH, createdAt: { $gte: todayStart } }),
+    totals({ ...REVENUE_MATCH, createdAt: { $gte: monthStart } }),
+    totals({ ...REVENUE_MATCH, createdAt: { $gte: last30Start } }),
+    totals({ ...REVENUE_MATCH, createdAt: { $gte: prev30Start, $lt: last30Start } }),
+    OrderMd.countDocuments({ status: "pending_payment", paymentStatus: "pending" }),
+    OrderMd.countDocuments({ status: "processing", paymentStatus: "paid" }),
+    OrderMd.countDocuments({ stockDeductionFailed: true, status: { $ne: "canceled" } }),
     UserMd.countDocuments({ role: "customer" }),
-    UserMd.countDocuments({ role: "customer", createdAt: { $gte: startOfMonth } }),
+    UserMd.countDocuments({ role: "customer", createdAt: { $gte: todayStart } }),
+    UserMd.countDocuments({ role: "customer", createdAt: { $gte: monthStart } }),
+    ProductMd.countDocuments(),
     ProductMd.countDocuments({ isActive: true }),
-    ProductMd.countDocuments({ "variants.stock": { $lte: 5 } }),
+    ProductMd.aggregate([
+      { $match: { isActive: true } },
+      { $unwind: "$variants" },
+      {
+        $group: {
+          _id: null,
+          low: {
+            $sum: {
+              $cond: [
+                { $and: [{ $gt: ["$variants.stock", 0] }, { $lte: ["$variants.stock", LOW_STOCK_THRESHOLD] }] },
+                1,
+                0,
+              ],
+            },
+          },
+          out: { $sum: { $cond: [{ $eq: ["$variants.stock", 0] }, 1, 0] } },
+        },
+      },
+    ]),
   ]);
 
   new ApiResponse(
     200,
     {
       revenue: {
-        total: totalRevenueAgg[0]?.sum || 0,
-        today: todayRevenueAgg[0]?.sum || 0,
-        thisMonth: monthRevenueAgg[0]?.sum || 0,
+        total: all.revenue,
+        today: today.revenue,
+        thisMonth: month.revenue,
+        last30Days: last30.revenue,
+        change: percentChange(last30.revenue, prev30.revenue),
       },
-      orders: { total: totalOrders, today: todayOrders, pendingPayment: pendingOrders },
-      users: { total: totalUsers, newThisMonth: newUsersThisMonth },
-      products: { total: totalProducts, lowStock: lowStockCount },
+      orders: {
+        total: all.orders,
+        today: today.orders,
+        thisMonth: month.orders,
+        last30Days: last30.orders,
+        change: percentChange(last30.orders, prev30.orders),
+        processing: processingOrders,
+        unpaid: unpaidOrders,
+      },
+      customers: { total: customersTotal, newToday: newCustomersToday, newThisMonth: newCustomersMonth },
+      products: {
+        total: productsTotal,
+        active: productsActive,
+        lowStockVariants: stockAgg[0]?.low || 0,
+        outOfStockVariants: stockAgg[0]?.out || 0,
+      },
+      attention: { stockProblemOrders, processingOrders },
     },
     "خلاصه آمار داشبورد"
   ).send(res);
 });
 
-// ---------- ۲. نمودار فروش بر اساس بازه زمانی ----------
+// ---------- ۲. نمودار فروش: سری روزانه (گروه‌بندی هفتگی/ماهانه شمسی سمت پنل انجام میشه) ----------
 export const getSalesChart = asyncHandler(async (req, res) => {
-  const { period = "daily", days = 30 } = req.query;
+  const days = toPositiveInt(req.query.days, 30, 366);
+  const from = addDays(startOfTehranDay(), -(days - 1));
 
-  const dateFormat = period === "monthly" ? "%Y-%m" : period === "weekly" ? "%G-W%V" : "%Y-%m-%d";
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - Number(days));
+  const dayKey = { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: TEHRAN_TZ } };
 
-  const data = await OrderMd.aggregate([
-    { $match: { ...PAID_MATCH, createdAt: { $gte: fromDate } } },
-    {
-      $group: {
-        _id: { $dateToString: { format: dateFormat, date: "$createdAt" } },
-        revenue: { $sum: "$totalAmount" },
-        ordersCount: { $sum: 1 },
-      },
-    },
-    { $sort: { _id: 1 } },
+  const [sales, users, previous] = await Promise.all([
+    OrderMd.aggregate([
+      { $match: { ...REVENUE_MATCH, createdAt: { $gte: from } } },
+      { $group: { _id: dayKey, revenue: { $sum: "$totalAmount" }, orders: { $sum: 1 } } },
+    ]),
+    UserMd.aggregate([
+      { $match: { role: "customer", createdAt: { $gte: from } } },
+      { $group: { _id: dayKey, count: { $sum: 1 } } },
+    ]),
+    totals({ ...REVENUE_MATCH, createdAt: { $gte: addDays(from, -days), $lt: from } }),
   ]);
 
-  new ApiResponse(200, data, "نمودار فروش").send(res);
+  const salesByDay = new Map(sales.map((s) => [s._id, s]));
+  const usersByDay = new Map(users.map((u) => [u._id, u.count]));
+
+  const series = [];
+  for (let i = 0; i < days; i += 1) {
+    const key = tehranDateKey(addDays(from, i));
+    series.push({
+      date: key,
+      revenue: salesByDay.get(key)?.revenue || 0,
+      orders: salesByDay.get(key)?.orders || 0,
+      newUsers: usersByDay.get(key) || 0,
+    });
+  }
+
+  const sum = (field) => series.reduce((acc, row) => acc + row[field], 0);
+
+  new ApiResponse(
+    200,
+    {
+      days,
+      series,
+      totals: { revenue: sum("revenue"), orders: sum("orders"), newUsers: sum("newUsers") },
+      previous,
+    },
+    "نمودار فروش"
+  ).send(res);
 });
 
 // ---------- ۳. پرفروش‌ترین محصولات ----------
 export const getTopProducts = asyncHandler(async (req, res) => {
-  const { limit = 10 } = req.query;
+  const limit = toPositiveInt(req.query.limit, 10, 50);
 
   const data = await OrderMd.aggregate([
-    { $match: PAID_MATCH },
+    { $match: { ...REVENUE_MATCH, ...rangeMatch(req.query.days) } },
     { $unwind: "$items" },
     {
       $group: {
         _id: "$items.product",
+        snapshotName: { $first: "$items.name" },
+        snapshotImage: { $first: "$items.image" },
         totalSold: { $sum: "$items.quantity" },
-        totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
+        revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
       },
     },
     { $sort: { totalSold: -1 } },
-    { $limit: Number(limit) },
+    { $limit: limit },
     { $lookup: { from: "products", localField: "_id", foreignField: "_id", as: "product" } },
-    { $unwind: "product" },
+    { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
     {
       $project: {
         _id: 0,
         productId: "$_id",
-        name: "$product.name",
+        name: { $ifNull: ["$product.name", "$snapshotName"] },
         slug: "$product.slug",
-        images: "$product.images",
+        image: { $ifNull: [{ $arrayElemAt: ["$product.images", 0] }, "$snapshotImage"] },
         totalSold: 1,
-        totalRevenue: 1,
+        revenue: 1,
       },
     },
   ]);
@@ -118,76 +208,134 @@ export const getTopProducts = asyncHandler(async (req, res) => {
   new ApiResponse(200, data, "پرفروش‌ترین محصولات").send(res);
 });
 
-// ---------- ۴. تفکیک وضعیت سفارش‌ها ----------
+// ---------- ۴. تفکیک وضعیت سفارش‌های پرداخت‌شده ----------
 export const getOrderStatusBreakdown = asyncHandler(async (req, res) => {
-  const data = await OrderMd.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]);
+  const rows = await OrderMd.aggregate([
+    { $match: { paymentStatus: "paid", ...rangeMatch(req.query.days) } },
+    { $group: { _id: "$status", count: { $sum: 1 } } },
+  ]);
+
+  const map = Object.fromEntries(rows.map((r) => [r._id, r.count]));
+  const data = ["processing", "shipped", "delivered", "canceled"].map((status) => ({
+    status,
+    count: map[status] || 0,
+  }));
 
   new ApiResponse(200, data, "تفکیک وضعیت سفارش‌ها").send(res);
 });
 
-// ---------- ۵. فروش بر اساس دسته‌بندی ----------
+// ---------- ۵. فروش به تفکیک دسته‌بندی اصلی ----------
 export const getSalesByCategory = asyncHandler(async (req, res) => {
-  const data = await OrderMd.aggregate([
-    { $match: PAID_MATCH },
-    { $unwind: "$items" },
-    { $lookup: { from: "products", localField: "items.product", foreignField: "_id", as: "product" } },
-    { $unwind: "product" },
-    { $lookup: { from: "categories", localField: "product.category", foreignField: "_id", as: "category" } },
-    { $unwind: "category" },
-    {
-      $group: {
-        _id: "$category._id",
-        categoryName: { $first: "$category.name" },
-        totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
-        totalSold: { $sum: "$items.quantity" },
+  const [rows, categories] = await Promise.all([
+    OrderMd.aggregate([
+      { $match: { ...REVENUE_MATCH, ...rangeMatch(req.query.days) } },
+      { $unwind: "$items" },
+      { $lookup: { from: "products", localField: "items.product", foreignField: "_id", as: "product" } },
+      { $unwind: "$product" },
+      {
+        $group: {
+          _id: "$product.category",
+          revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
+          sold: { $sum: "$items.quantity" },
+        },
       },
-    },
-    { $sort: { totalRevenue: -1 } },
+    ]),
+    CategoryMd.find().select("name parent").lean(),
   ]);
 
+  const byId = new Map(categories.map((c) => [String(c._id), c]));
+  const rootOf = (id) => {
+    let current = byId.get(String(id));
+    let guard = 0;
+    while (current?.parent && guard < 10) {
+      current = byId.get(String(current.parent));
+      guard += 1;
+    }
+    return current;
+  };
+
+  // فروش زیردسته‌ها به دسته اصلی‌شون اضافه میشه
+  const merged = new Map();
+  for (const row of rows) {
+    const root = rootOf(row._id);
+    if (!root) continue;
+    const key = String(root._id);
+    const entry = merged.get(key) || { categoryId: root._id, name: root.name, revenue: 0, sold: 0 };
+    entry.revenue += row.revenue;
+    entry.sold += row.sold;
+    merged.set(key, entry);
+  }
+
+  const data = [...merged.values()].sort((a, b) => b.revenue - a.revenue);
   new ApiResponse(200, data, "فروش بر اساس دسته‌بندی").send(res);
 });
 
-// ---------- ۶. جدیدترین سفارش‌ها ----------
-export const getRecentOrders = asyncHandler(async (req, res) => {
-  const { limit = 10 } = req.query;
+// ---------- ۶. فروش به تفکیک استان ----------
+export const getSalesByProvince = asyncHandler(async (req, res) => {
+  const data = await OrderMd.aggregate([
+    { $match: { ...REVENUE_MATCH, ...rangeMatch(req.query.days) } },
+    {
+      $group: {
+        _id: "$address.province",
+        orders: { $sum: 1 },
+        revenue: { $sum: "$totalAmount" },
+      },
+    },
+    { $sort: { revenue: -1 } },
+    { $project: { _id: 0, province: "$_id", orders: 1, revenue: 1 } },
+  ]);
 
-  const orders = await OrderMd.find()
-    .populate("user", "name phone")
-    .sort({ createdAt: -1 })
-    .limit(Number(limit));
-
-  new ApiResponse(200, orders, "جدیدترین سفارش‌ها").send(res);
+  new ApiResponse(200, data, "فروش بر اساس استان").send(res);
 });
 
-// ---------- ۷. محصولات با موجودی کم ----------
-export const getLowStockProducts = asyncHandler(async (req, res) => {
-  const { threshold = 5 } = req.query;
+// ---------- ۷. آخرین سفارش‌های پرداخت‌شده ----------
+export const getRecentOrders = asyncHandler(async (req, res) => {
+  const limit = toPositiveInt(req.query.limit, 8, 50);
 
-  const products = await ProductMd.aggregate([
+  const orders = await OrderMd.find({ paymentStatus: "paid" })
+    .select("totalAmount status createdAt user address.city items")
+    .populate("user", "name phone")
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  new ApiResponse(200, orders, "آخرین سفارش‌ها").send(res);
+});
+
+// ---------- ۸. موجودی کم یا تمام‌شده ----------
+export const getLowStockProducts = asyncHandler(async (req, res) => {
+  const threshold = toPositiveInt(req.query.threshold, LOW_STOCK_THRESHOLD, 1000);
+
+  const data = await ProductMd.aggregate([
+    { $match: { isActive: true } },
     { $unwind: "$variants" },
-    { $match: { "variants.stock": { $lte: Number(threshold) } } },
+    { $match: { "variants.stock": { $lte: threshold } } },
+    { $sort: { "variants.stock": 1, name: 1 } },
+    { $limit: 100 },
     {
       $project: {
+        _id: 0,
+        productId: "$_id",
         name: 1,
         slug: 1,
+        image: { $arrayElemAt: ["$images", 0] },
         size: "$variants.size",
         color: "$variants.color",
+        colorHex: "$variants.colorHex",
         stock: "$variants.stock",
       },
     },
-    { $sort: { stock: 1 } },
   ]);
 
-  new ApiResponse(200, products, "محصولات با موجودی کم").send(res);
+  new ApiResponse(200, data, "موجودی کم").send(res);
 });
 
-// ---------- ۸. مشتریان برتر (بیشترین خرید) ----------
+// ---------- ۹. مشتریان برتر ----------
 export const getTopCustomers = asyncHandler(async (req, res) => {
-  const { limit = 10 } = req.query;
+  const limit = toPositiveInt(req.query.limit, 10, 50);
 
   const data = await OrderMd.aggregate([
-    { $match: PAID_MATCH },
+    { $match: { ...REVENUE_MATCH, ...rangeMatch(req.query.days) } },
     {
       $group: {
         _id: "$user",
@@ -196,10 +344,19 @@ export const getTopCustomers = asyncHandler(async (req, res) => {
       },
     },
     { $sort: { totalSpent: -1 } },
-    { $limit: Number(limit) },
+    { $limit: limit },
     { $lookup: { from: "users", localField: "_id", foreignField: "_id", as: "user" } },
-    { $unwind: "user" },
-    { $project: { _id: 0, userId: "$_id", name: "$user.name", phone: "$user.phone", totalSpent: 1, ordersCount: 1 } },
+    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        _id: 0,
+        userId: "$_id",
+        name: { $ifNull: ["$user.name", "کاربر حذف‌شده"] },
+        phone: "$user.phone",
+        totalSpent: 1,
+        ordersCount: 1,
+      },
+    },
   ]);
 
   new ApiResponse(200, data, "مشتریان برتر").send(res);

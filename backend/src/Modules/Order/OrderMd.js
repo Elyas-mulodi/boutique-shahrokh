@@ -2,6 +2,15 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
+const statusHistorySchema = new Schema(
+  {
+    status: { type: String, required: true },
+    at: { type: Date, default: Date.now },
+    by: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  },
+  { _id: false }
+);
+
 const orderItemSchema = new Schema(
   {
     product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
@@ -11,6 +20,7 @@ const orderItemSchema = new Schema(
     color: { type: String, required: true },
     quantity: { type: Number, required: true, min: 1 },
     price: { type: Number, required: true },
+    stockDeducted: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -67,8 +77,18 @@ const orderSchema = new Schema(
     // اگر پرداخت موفق بود ولی کسر موجودی fail شد (نباید پیش بیاد، ولی برای رصد ادمین)
     stockDeductionFailed: { type: Boolean, default: false },
     stockDeducted: { type: Boolean, default: false },
+
+    trackingCode: { type: String, default: null, trim: true },
+    shippedAt: { type: Date, default: null },
+    deliveredAt: { type: Date, default: null },
+    canceledAt: { type: Date, default: null },
+    stockRestored: { type: Boolean, default: false },
+    statusHistory: { type: [statusHistorySchema], default: [] },
   },
   { timestamps: true }
 );
+
+orderSchema.index({ createdAt: -1 });
+orderSchema.index({ paymentStatus: 1, status: 1, createdAt: -1 });
 
 export default mongoose.model("Order", orderSchema);

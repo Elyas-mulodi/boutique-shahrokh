@@ -9,6 +9,21 @@ import UserMd from "../User/UserMd.js";
 import CouponMd from "../Coupon/CouponMd.js";
 import { validateAndCalculate } from "../Coupon/CouponCn.js";
 import { requestZarinpalPayment } from "../Payment/PaymentCn.js";
+import { escapeRegex, normalizeDigits, parseDate, toPositiveInt } from "../../Utils/text.js";
+
+const STATUS_LABELS = {
+  pending_payment: "در انتظار پرداخت",
+  processing: "در حال پردازش",
+  shipped: "ارسال شده",
+  delivered: "تحویل شده",
+  canceled: "لغو شده",
+};
+
+// تغییر وضعیت مجاز (فقط برای سفارش‌های پرداخت‌شده)
+const TRANSITIONS = {
+  processing: ["shipped", "canceled"],
+  shipped: ["delivered", "canceled"],
+};
 
 /**
  * ساخت سفارش از روی سبد خرید کاربر + درخواست پرداخت از زرین‌پال.
@@ -113,10 +128,10 @@ export const getMyOrders = asyncHandler(async (req, res) => {
 });
 
 export const getOrderById = asyncHandler(async (req, res) => {
-  const order = await OrderMd.findById(req.params.id);
+  const order = await OrderMd.findById(req.params.id).populate("user", "name phone");
   if (!order) throw ApiError.notFound("سفارش یافت نشد");
 
-  const isOwner = order.user.toString() === req.user._id.toString();
+  const isOwner = order.user?._id?.toString() === req.user._id.toString();
   if (!isOwner && req.user.role !== "admin") {
     throw ApiError.forbidden("شما اجازه دیدن این سفارش را ندارید");
   }
@@ -124,57 +139,187 @@ export const getOrderById = asyncHandler(async (req, res) => {
   new ApiResponse(200, order, "جزئیات سفارش").send(res);
 });
 
-// --- ادمین ---
+// ---------- ادمین ----------
 export const listAllOrders = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, status } = req.query;
-  const filter = {};
-  if (status) filter.status = status;
+  const page = toPositiveInt(req.query.page, 1);
+  const limit = toPositiveInt(req.query.limit, 20, 100);
+  const { status, paymentStatus = "all", attention } = req.query;
 
-  const skip = (Number(page) - 1) * Number(limit);
-  const [orders, total] = await Promise.all([
+  const fromDate = parseDate(req.query.from);
+  const toDate = parseDate(req.query.to);
+  if ((req.query.from && !fromDate) || (req.query.to && !toDate)) {
+    throw ApiError.badRequest("بازه تاریخ نامعتبر است");
+  }
+
+  const paymentFilter =
+    paymentStatus === "paid"
+      ? { paymentStatus: "paid" }
+      : paymentStatus === "unpaid"
+        ? { paymentStatus: { $in: ["pending", "failed"] } }
+        : {};
+
+  const filter = { ...paymentFilter };
+  if (status) filter.status = status;
+  if (attention === "1") filter.stockDeductionFailed = true;
+
+  if (fromDate || toDate) {
+    filter.createdAt = {};
+    if (fromDate) filter.createdAt.$gte = fromDate;
+    if (toDate) filter.createdAt.$lte = toDate;
+  }
+
+  const term = normalizeDigits(String(req.query.search || "")).trim();
+  if (term) {
+    const regex = new RegExp(escapeRegex(term), "i");
+    const users = await UserMd.find({ $or: [{ phone: regex }, { name: regex }] })
+      .select("_id")
+      .limit(200)
+      .lean();
+
+    const or = [
+      { user: { $in: users.map((u) => u._id) } },
+      { trackingCode: regex },
+      { "address.receiverName": regex },
+      { "address.receiverPhone": regex },
+    ];
+
+    // جستجو با کد کوتاه سفارش (همون ۶ رقم آخر که مشتری می‌بینه) یا شناسه کامل
+    if (/^[0-9a-f]{3,24}$/i.test(term)) {
+      or.push({
+        $expr: { $regexMatch: { input: { $toString: "$_id" }, regex: `${term}$`, options: "i" } },
+      });
+    }
+    filter.$or = or;
+  }
+
+  const [orders, total, countsAgg] = await Promise.all([
     OrderMd.find(filter)
       .populate("user", "name phone")
-      .skip(skip)
-      .limit(Number(limit))
-      .sort({ createdAt: -1 }),
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
     OrderMd.countDocuments(filter),
+    OrderMd.aggregate([
+      { $match: paymentFilter },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]),
   ]);
+
+  const counts = Object.fromEntries(countsAgg.map((c) => [c._id, c.count]));
 
   new ApiResponse(
     200,
-    { orders, total, page: Number(page), pages: Math.ceil(total / limit) },
+    { orders, total, page, pages: Math.ceil(total / limit) || 1, counts },
     "لیست سفارش‌ها"
   ).send(res);
 });
 
+// برگردوندن موجودی سفارش لغوشده (فقط یک‌بار)
+async function restockOrder(orderId) {
+  const claimed = await OrderMd.findOneAndUpdate(
+    { _id: orderId, paymentStatus: "paid", stockRestored: { $ne: true } },
+    { $set: { stockRestored: true } },
+    { new: true }
+  );
+  if (!claimed) return false;
+
+  // سفارش‌های قدیمی فلگ per-item ندارن؛ برای اون‌ها از فلگ کل سفارش استفاده میشه
+  const legacyDeducted = claimed.stockDeducted && !claimed.stockDeductionFailed;
+
+  for (const item of claimed.items) {
+    const wasDeducted = item.stockDeducted || (item.stockDeducted === undefined && legacyDeducted);
+    if (!wasDeducted) continue;
+
+    await ProductMd.updateOne(
+      { _id: item.product },
+      { $inc: { "variants.$[v].stock": item.quantity } },
+      { arrayFilters: [{ "v._id": item.variantId }] }
+    );
+  }
+  return true;
+}
+
 export const updateOrderStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body;
-  const allowed = ["processing", "shipped", "delivered", "canceled"];
-  if (!allowed.includes(status)) throw ApiError.badRequest("وضعیت نامعتبر است");
+  const { status, trackingCode } = req.body;
 
-  const order = await OrderMd.findByIdAndUpdate(req.params.id, { status }, { new: true });
+  const order = await OrderMd.findById(req.params.id);
   if (!order) throw ApiError.notFound("سفارش یافت نشد");
+  if (order.paymentStatus !== "paid") {
+    throw ApiError.badRequest("وضعیت سفارش پرداخت‌نشده قابل تغییر نیست");
+  }
 
-  new ApiResponse(200, order, "وضعیت سفارش بروزرسانی شد").send(res);
+  // فقط ویرایش کد رهگیری
+  if (!status) {
+    if (!["shipped", "delivered"].includes(order.status)) {
+      throw ApiError.badRequest("کد رهگیری فقط برای سفارش‌های ارسال‌شده قابل ثبت است");
+    }
+    order.trackingCode = trackingCode;
+    await order.save();
+    return new ApiResponse(200, { order, restocked: false }, "کد رهگیری ذخیره شد").send(res);
+  }
+
+  const allowed = TRANSITIONS[order.status] || [];
+  if (!allowed.includes(status)) {
+    throw ApiError.badRequest(
+      `تغییر وضعیت از «${STATUS_LABELS[order.status]}» به «${STATUS_LABELS[status]}» مجاز نیست`
+    );
+  }
+
+  const now = new Date();
+  const set = { status };
+  if (status === "shipped") {
+    set.shippedAt = now;
+    if (trackingCode) set.trackingCode = trackingCode;
+  }
+  if (status === "delivered") set.deliveredAt = now;
+  if (status === "canceled") set.canceledAt = now;
+
+  // شرط status تضمین می‌کنه دو ادمین همزمان، وضعیت رو دوبار عوض نکنن
+  const updated = await OrderMd.findOneAndUpdate(
+    { _id: order._id, status: order.status },
+    { $set: set, $push: { statusHistory: { status, at: now, by: req.user._id } } },
+    { new: true }
+  );
+  if (!updated) throw ApiError.conflict("وضعیت سفارش همزمان تغییر کرد؛ صفحه را رفرش کنید");
+
+  const restocked = status === "canceled" ? await restockOrder(updated._id) : false;
+
+  new ApiResponse(
+    200,
+    { order: updated, restocked },
+    restocked ? "سفارش لغو شد و موجودی به انبار برگشت" : "وضعیت سفارش بروزرسانی شد"
+  ).send(res);
 });
 
-
+/**
+ * بعد از تایید پرداخت توسط PaymentCn صدا زده میشه. بدون نیاز به transaction.
+ * ۱. سفارش اتمیک «پرداخت‌شده» علامت می‌خوره (callback تکراری بی‌اثره)
+ * ۲. موجودی هر آیتم با شرط کافی‌بودن کم میشه و برای هر آیتم ثبت میشه
+ * ۳. اگه موجودی یه آیتم کافی نبود، سفارش پرداخت‌شده می‌مونه و برای رسیدگی ادمین علامت می‌خوره
+ */
 export async function markOrderPaidAndDeductStock(order, paymentRefId = null) {
   const claimed = await OrderMd.findOneAndUpdate(
     { _id: order._id, paymentStatus: { $ne: "paid" } },
     {
-      paymentStatus: "paid",
-      status: "processing",
-      ...(paymentRefId && { paymentRefId }),
+      $set: {
+        paymentStatus: "paid",
+        status: "processing",
+        ...(paymentRefId && { paymentRefId }),
+      },
+      $push: { statusHistory: { status: "processing", at: new Date() } },
     },
     { new: true }
   );
 
   if (!claimed) return { success: true, alreadyProcessed: true };
 
+  const deductedFlags = {};
   let stockFailed = false;
 
-  for (const item of claimed.items) {
+  for (let i = 0; i < claimed.items.length; i += 1) {
+    const item = claimed.items[i];
+
     const updated = await ProductMd.findOneAndUpdate(
       {
         _id: item.product,
@@ -183,7 +328,9 @@ export async function markOrderPaidAndDeductStock(order, paymentRefId = null) {
       { $inc: { "variants.$.stock": -item.quantity } }
     );
 
-    if (!updated) {
+    if (updated) {
+      deductedFlags[`items.${i}.stockDeducted`] = true;
+    } else {
       stockFailed = true;
       console.error(`⚠️ موجودی کافی نبود: سفارش ${claimed._id} - محصول ${item.product}`);
     }
@@ -191,7 +338,7 @@ export async function markOrderPaidAndDeductStock(order, paymentRefId = null) {
 
   await OrderMd.updateOne(
     { _id: claimed._id },
-    { stockDeducted: true, stockDeductionFailed: stockFailed }
+    { $set: { ...deductedFlags, stockDeducted: true, stockDeductionFailed: stockFailed } }
   );
 
   try {
@@ -202,7 +349,6 @@ export async function markOrderPaidAndDeductStock(order, paymentRefId = null) {
 
   return { success: !stockFailed, stockFailed };
 }
-
 export const deleteMyOrder = asyncHandler(async (req, res) => {
   const order = await OrderMd.findOne({ _id: req.params.id, user: req.user._id });
   if (!order) throw ApiError.notFound("سفارش یافت نشد");
