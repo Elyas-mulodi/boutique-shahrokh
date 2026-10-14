@@ -13,20 +13,35 @@ import UserMd from "../User/UserMd.js";
 import ProductMd from "../Product/ProductMd.js";
 import CategoryMd from "../Category/CategoryMd.js";
 
-// سفارش‌هایی که تو آمار فروش حساب میشن: پرداخت‌شده و لغونشده
-const REVENUE_MATCH = { paymentStatus: "paid", status: { $ne: "canceled" } };
 const LOW_STOCK_THRESHOLD = 5;
 
-// days ارسال نشده یا نامعتبر → کل زمان
-function rangeMatch(daysParam) {
-  const days = toPositiveInt(daysParam, 0, 366);
-  if (!days) return {};
-  return { createdAt: { $gte: addDays(startOfTehranDay(), -(days - 1)) } };
+// سفارش‌هایی که تو آمار فروش حساب میشن: پرداخت‌شده و لغونشده
+const REVENUE_MATCH = { paymentStatus: "paid", status: { $ne: "canceled" } };
+
+// تاریخ مؤثر فروش = زمان پرداخت (سفارش‌های قدیمی بدون paidAt: زمان ثبت)
+const REVENUE_DATE = { $ifNull: ["$paidAt", "$createdAt"] };
+
+function revenueStages({ from, to } = {}) {
+  const range = {};
+  if (from) range.$gte = from;
+  if (to) range.$lt = to;
+
+  return [
+    { $match: REVENUE_MATCH },
+    { $addFields: { revenueDate: REVENUE_DATE } },
+    ...(from || to ? [{ $match: { revenueDate: range } }] : []),
+  ];
 }
 
-async function totals(match) {
+// days نامعتبر یا ارسال‌نشده → کل زمان
+function fromForDays(daysParam) {
+  const days = toPositiveInt(daysParam, 0, 366);
+  return days ? addDays(startOfTehranDay(), -(days - 1)) : null;
+}
+
+async function totals(range) {
   const [row] = await OrderMd.aggregate([
-    { $match: match },
+    ...revenueStages(range),
     { $group: { _id: null, revenue: { $sum: "$totalAmount" }, orders: { $sum: 1 } } },
   ]);
   return { revenue: row?.revenue || 0, orders: row?.orders || 0 };
@@ -34,6 +49,10 @@ async function totals(match) {
 
 const percentChange = (current, previous) =>
   previous === 0 ? null : Math.round(((current - previous) / previous) * 1000) / 10;
+
+const dayKeyOf = (field) => ({
+  $dateToString: { format: "%Y-%m-%d", date: field, timezone: TEHRAN_TZ },
+});
 
 // ---------- ۱. خلاصه کلی ----------
 export const getOverview = asyncHandler(async (req, res) => {
@@ -59,11 +78,11 @@ export const getOverview = asyncHandler(async (req, res) => {
     productsActive,
     stockAgg,
   ] = await Promise.all([
-    totals(REVENUE_MATCH),
-    totals({ ...REVENUE_MATCH, createdAt: { $gte: todayStart } }),
-    totals({ ...REVENUE_MATCH, createdAt: { $gte: monthStart } }),
-    totals({ ...REVENUE_MATCH, createdAt: { $gte: last30Start } }),
-    totals({ ...REVENUE_MATCH, createdAt: { $gte: prev30Start, $lt: last30Start } }),
+    totals(),
+    totals({ from: todayStart }),
+    totals({ from: monthStart }),
+    totals({ from: last30Start }),
+    totals({ from: prev30Start, to: last30Start }),
     OrderMd.countDocuments({ status: "pending_payment", paymentStatus: "pending" }),
     OrderMd.countDocuments({ status: "processing", paymentStatus: "paid" }),
     OrderMd.countDocuments({ stockDeductionFailed: true, status: { $ne: "canceled" } }),
@@ -81,7 +100,12 @@ export const getOverview = asyncHandler(async (req, res) => {
           low: {
             $sum: {
               $cond: [
-                { $and: [{ $gt: ["$variants.stock", 0] }, { $lte: ["$variants.stock", LOW_STOCK_THRESHOLD] }] },
+                {
+                  $and: [
+                    { $gt: ["$variants.stock", 0] },
+                    { $lte: ["$variants.stock", LOW_STOCK_THRESHOLD] },
+                  ],
+                },
                 1,
                 0,
               ],
@@ -112,7 +136,11 @@ export const getOverview = asyncHandler(async (req, res) => {
         processing: processingOrders,
         unpaid: unpaidOrders,
       },
-      customers: { total: customersTotal, newToday: newCustomersToday, newThisMonth: newCustomersMonth },
+      customers: {
+        total: customersTotal,
+        newToday: newCustomersToday,
+        newThisMonth: newCustomersMonth,
+      },
       products: {
         total: productsTotal,
         active: productsActive,
@@ -129,19 +157,25 @@ export const getOverview = asyncHandler(async (req, res) => {
 export const getSalesChart = asyncHandler(async (req, res) => {
   const days = toPositiveInt(req.query.days, 30, 366);
   const from = addDays(startOfTehranDay(), -(days - 1));
+  const previousFrom = addDays(from, -days);
 
-  const dayKey = { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: TEHRAN_TZ } };
-
-  const [sales, users, previous] = await Promise.all([
+  const [sales, users, previous, previousNewUsers] = await Promise.all([
     OrderMd.aggregate([
-      { $match: { ...REVENUE_MATCH, createdAt: { $gte: from } } },
-      { $group: { _id: dayKey, revenue: { $sum: "$totalAmount" }, orders: { $sum: 1 } } },
+      ...revenueStages({ from }),
+      {
+        $group: {
+          _id: dayKeyOf("$revenueDate"),
+          revenue: { $sum: "$totalAmount" },
+          orders: { $sum: 1 },
+        },
+      },
     ]),
     UserMd.aggregate([
       { $match: { role: "customer", createdAt: { $gte: from } } },
-      { $group: { _id: dayKey, count: { $sum: 1 } } },
+      { $group: { _id: dayKeyOf("$createdAt"), count: { $sum: 1 } } },
     ]),
-    totals({ ...REVENUE_MATCH, createdAt: { $gte: addDays(from, -days), $lt: from } }),
+    totals({ from: previousFrom, to: from }),
+    UserMd.countDocuments({ role: "customer", createdAt: { $gte: previousFrom, $lt: from } }),
   ]);
 
   const salesByDay = new Map(sales.map((s) => [s._id, s]));
@@ -166,18 +200,20 @@ export const getSalesChart = asyncHandler(async (req, res) => {
       days,
       series,
       totals: { revenue: sum("revenue"), orders: sum("orders"), newUsers: sum("newUsers") },
-      previous,
+      previous: { ...previous, newUsers: previousNewUsers },
     },
     "نمودار فروش"
   ).send(res);
 });
 
-// ---------- ۳. پرفروش‌ترین محصولات ----------
+// ---------- ۳. پرفروش‌ترین محصولات (sort = sold | revenue) ----------
 export const getTopProducts = asyncHandler(async (req, res) => {
   const limit = toPositiveInt(req.query.limit, 10, 50);
+  const sortField = req.query.sort === "revenue" ? "revenue" : "totalSold";
+  const from = fromForDays(req.query.days);
 
   const data = await OrderMd.aggregate([
-    { $match: { ...REVENUE_MATCH, ...rangeMatch(req.query.days) } },
+    ...revenueStages({ from }),
     { $unwind: "$items" },
     {
       $group: {
@@ -188,7 +224,7 @@ export const getTopProducts = asyncHandler(async (req, res) => {
         revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
       },
     },
-    { $sort: { totalSold: -1 } },
+    { $sort: { [sortField]: -1, _id: 1 } },
     { $limit: limit },
     { $lookup: { from: "products", localField: "_id", foreignField: "_id", as: "product" } },
     { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
@@ -208,29 +244,74 @@ export const getTopProducts = asyncHandler(async (req, res) => {
   new ApiResponse(200, data, "پرفروش‌ترین محصولات").send(res);
 });
 
-// ---------- ۴. تفکیک وضعیت سفارش‌های پرداخت‌شده ----------
+// ---------- ۴. تفکیک کامل وضعیت سفارش‌ها (بر اساس زمان ثبت) ----------
+const BUCKET_KEYS = [
+  "pending_payment",
+  "processing",
+  "shipped",
+  "delivered",
+  "canceled_paid",
+  "canceled_unpaid",
+];
+
+function classify(status, paid) {
+  if (status === "canceled") return paid ? "canceled_paid" : "canceled_unpaid";
+  if (status === "pending_payment") return paid ? "inconsistent" : "pending_payment";
+  if (["processing", "shipped", "delivered"].includes(status))
+    return paid ? status : "inconsistent";
+  return "inconsistent";
+}
+
 export const getOrderStatusBreakdown = asyncHandler(async (req, res) => {
+  const from = fromForDays(req.query.days);
+
   const rows = await OrderMd.aggregate([
-    { $match: { paymentStatus: "paid", ...rangeMatch(req.query.days) } },
-    { $group: { _id: "$status", count: { $sum: 1 } } },
+    ...(from ? [{ $match: { createdAt: { $gte: from } } }] : []),
+    {
+      $group: {
+        _id: { status: "$status", paid: { $eq: ["$paymentStatus", "paid"] } },
+        count: { $sum: 1 },
+        amount: { $sum: "$totalAmount" },
+      },
+    },
   ]);
 
-  const map = Object.fromEntries(rows.map((r) => [r._id, r.count]));
-  const data = ["processing", "shipped", "delivered", "canceled"].map((status) => ({
-    status,
-    count: map[status] || 0,
-  }));
+  const map = new Map();
+  for (const row of rows) {
+    const key = classify(row._id.status, row._id.paid);
+    const entry = map.get(key) || { key, count: 0, amount: 0 };
+    entry.count += row.count;
+    entry.amount += row.amount;
+    map.set(key, entry);
+  }
 
-  new ApiResponse(200, data, "تفکیک وضعیت سفارش‌ها").send(res);
+  const buckets = BUCKET_KEYS.map((key) => map.get(key) || { key, count: 0, amount: 0 });
+  if (map.has("inconsistent")) buckets.push(map.get("inconsistent"));
+
+  const total = buckets.reduce(
+    (acc, b) => ({ count: acc.count + b.count, amount: acc.amount + b.amount }),
+    { count: 0, amount: 0 }
+  );
+
+  new ApiResponse(200, { buckets, total }, "تفکیک وضعیت سفارش‌ها").send(res);
 });
 
 // ---------- ۵. فروش به تفکیک دسته‌بندی اصلی ----------
 export const getSalesByCategory = asyncHandler(async (req, res) => {
+  const from = fromForDays(req.query.days);
+
   const [rows, categories] = await Promise.all([
     OrderMd.aggregate([
-      { $match: { ...REVENUE_MATCH, ...rangeMatch(req.query.days) } },
+      ...revenueStages({ from }),
       { $unwind: "$items" },
-      { $lookup: { from: "products", localField: "items.product", foreignField: "_id", as: "product" } },
+      {
+        $lookup: {
+          from: "products",
+          localField: "items.product",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
       { $unwind: "$product" },
       {
         $group: {
@@ -272,8 +353,10 @@ export const getSalesByCategory = asyncHandler(async (req, res) => {
 
 // ---------- ۶. فروش به تفکیک استان ----------
 export const getSalesByProvince = asyncHandler(async (req, res) => {
+  const from = fromForDays(req.query.days);
+
   const data = await OrderMd.aggregate([
-    { $match: { ...REVENUE_MATCH, ...rangeMatch(req.query.days) } },
+    ...revenueStages({ from }),
     {
       $group: {
         _id: "$address.province",
@@ -288,14 +371,14 @@ export const getSalesByProvince = asyncHandler(async (req, res) => {
   new ApiResponse(200, data, "فروش بر اساس استان").send(res);
 });
 
-// ---------- ۷. آخرین سفارش‌های پرداخت‌شده ----------
+// ---------- ۷. آخرین سفارش‌های پرداخت‌شده (با همه وضعیت‌ها) ----------
 export const getRecentOrders = asyncHandler(async (req, res) => {
   const limit = toPositiveInt(req.query.limit, 8, 50);
 
   const orders = await OrderMd.find({ paymentStatus: "paid" })
-    .select("totalAmount status createdAt user address.city items")
+    .select("totalAmount status createdAt paidAt user address.city items")
     .populate("user", "name phone")
-    .sort({ createdAt: -1 })
+    .sort({ paidAt: -1, createdAt: -1 })
     .limit(limit)
     .lean();
 
@@ -333,9 +416,10 @@ export const getLowStockProducts = asyncHandler(async (req, res) => {
 // ---------- ۹. مشتریان برتر ----------
 export const getTopCustomers = asyncHandler(async (req, res) => {
   const limit = toPositiveInt(req.query.limit, 10, 50);
+  const from = fromForDays(req.query.days);
 
   const data = await OrderMd.aggregate([
-    { $match: { ...REVENUE_MATCH, ...rangeMatch(req.query.days) } },
+    ...revenueStages({ from }),
     {
       $group: {
         _id: "$user",
@@ -343,7 +427,7 @@ export const getTopCustomers = asyncHandler(async (req, res) => {
         ordersCount: { $sum: 1 },
       },
     },
-    { $sort: { totalSpent: -1 } },
+    { $sort: { totalSpent: -1, _id: 1 } },
     { $limit: limit },
     { $lookup: { from: "users", localField: "_id", foreignField: "_id", as: "user" } },
     { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },

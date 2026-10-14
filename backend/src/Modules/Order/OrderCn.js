@@ -305,6 +305,7 @@ export async function markOrderPaidAndDeductStock(order, paymentRefId = null) {
       $set: {
         paymentStatus: "paid",
         status: "processing",
+        paidAt: new Date(),
         ...(paymentRefId && { paymentRefId }),
       },
       $push: { statusHistory: { status: "processing", at: new Date() } },
@@ -349,6 +350,7 @@ export async function markOrderPaidAndDeductStock(order, paymentRefId = null) {
 
   return { success: !stockFailed, stockFailed };
 }
+
 export const deleteMyOrder = asyncHandler(async (req, res) => {
   const order = await OrderMd.findOne({ _id: req.params.id, user: req.user._id });
   if (!order) throw ApiError.notFound("سفارش یافت نشد");

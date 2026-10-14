@@ -1,0 +1,36 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getErrorMessage } from "../utils/error";
+
+
+export function useAsync(fn, deps = []) {
+  const [state, setState] = useState({ data: null, loading: true, error: null });
+  const fnRef = useRef(fn);
+  const requestId = useRef(0);
+  const depsKey = JSON.stringify(deps);
+
+  useEffect(() => {
+    fnRef.current = fn;
+  });
+
+  const run = useCallback(async () => {
+    const id = ++requestId.current;
+    setState((s) => ({ ...s, loading: true, error: null }));
+    try {
+      const data = await fnRef.current();
+      if (id !== requestId.current) return;
+      setState({ data, loading: false, error: null });
+    } catch (err) {
+      if (id !== requestId.current) return;
+      setState((s) => ({ ...s, loading: false, error: getErrorMessage(err, "خطا در دریافت اطلاعات") }));
+    }
+  }, []);
+
+  useEffect(() => {
+    run();
+    return () => {
+      requestId.current += 1;
+    };
+  }, [run, depsKey]);
+
+  return { ...state, reload: run };
+}

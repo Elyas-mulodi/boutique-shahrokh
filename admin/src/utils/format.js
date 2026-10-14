@@ -49,3 +49,14 @@ export const formatJalaliDateTime = (value) => {
   const d = toDate(value);
   return d ? `${jalaliShort.format(d)} • ${timeFormat.format(d)}` : "—";
 };
+
+export const percentChange = (current, previous) => {
+  if (!previous) return null;
+  return Math.round(((current - previous) / previous) * 1000) / 10;
+};
+
+export const rangeLabel = (days) => {
+  if (!days) return "کل زمان";
+  if (days === 365) return "یک سال اخیر";
+  return `${formatNumber(days)} روز اخیر`;
+};

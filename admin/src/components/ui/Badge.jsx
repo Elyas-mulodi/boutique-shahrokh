@@ -5,6 +5,7 @@ const tones = {
   warning: "bg-amber-50 text-amber-700",
   danger: "bg-red-50 text-red-600",
   dark: "bg-ink text-paper",
+  teal: "bg-cyan-50 text-cyan-700",
 };
 
 function Badge({ tone = "neutral", children, className = "" }) {

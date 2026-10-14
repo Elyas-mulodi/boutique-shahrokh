@@ -80,6 +80,7 @@ const orderSchema = new Schema(
 
     trackingCode: { type: String, default: null, trim: true },
     shippedAt: { type: Date, default: null },
+    paidAt: { type: Date, default: null },
     deliveredAt: { type: Date, default: null },
     canceledAt: { type: Date, default: null },
     stockRestored: { type: Boolean, default: false },
