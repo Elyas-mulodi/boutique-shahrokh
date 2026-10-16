@@ -8,7 +8,7 @@ export const createOrderSchema = z.object({
 
 export const updateStatusSchema = z
   .object({
-    status: z.enum(["shipped", "delivered", "canceled"]).optional(),
+    status: z.enum(["processing", "shipped", "delivered", "canceled"]).optional(),
     trackingCode: z.string().trim().min(3, "کد رهگیری معتبر نیست").max(60).optional(),
   })
   .refine((data) => data.status || data.trackingCode, {

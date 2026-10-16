@@ -7,6 +7,7 @@ const statusHistorySchema = new Schema(
     status: { type: String, required: true },
     at: { type: Date, default: Date.now },
     by: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    note: { type: String, default: null },
   },
   { _id: false }
 );

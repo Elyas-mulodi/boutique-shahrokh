@@ -222,7 +222,14 @@ function OrderCard({ order, onDeleted }) {
                   )}
                 </div>
               )}
-
+              {order.trackingCode && (
+                <div className="flex justify-between text-sm font-body text-ink/70">
+                  <span>کد رهگیری مرسوله</span>
+                  <span dir="ltr" className="font-bold text-ink">
+                    {order.trackingCode}
+                  </span>
+                </div>
+              )}
               <div className="border-t border-ink/10 pt-4">
                 <p className="font-body text-xs text-ink/50 mb-1.5">
                   آدرس تحویل

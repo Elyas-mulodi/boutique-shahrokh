@@ -21,6 +21,7 @@ const STATUS_LABELS = {
 
 // تغییر وضعیت مجاز (فقط برای سفارش‌های پرداخت‌شده)
 const TRANSITIONS = {
+  pending_payment: ["processing", "canceled"], // فقط برای سفارش‌های پرداخت‌شده‌ی ناسازگار (بقیه قبلاً رد میشن)
   processing: ["shipped", "canceled"],
   shipped: ["delivered", "canceled"],
 };
@@ -127,8 +128,13 @@ export const getMyOrders = asyncHandler(async (req, res) => {
   new ApiResponse(200, orders, "سفارش‌های من").send(res);
 });
 
+const andOf = (conditions) => (conditions.length ? { $and: conditions } : {});
+
 export const getOrderById = asyncHandler(async (req, res) => {
-  const order = await OrderMd.findById(req.params.id).populate("user", "name phone");
+  const query = OrderMd.findById(req.params.id).populate("user", "name phone");
+  if (req.user.role === "admin") query.populate("statusHistory.by", "name");
+
+  const order = await query;
   if (!order) throw ApiError.notFound("سفارش یافت نشد");
 
   const isOwner = order.user?._id?.toString() === req.user._id.toString();
@@ -139,11 +145,15 @@ export const getOrderById = asyncHandler(async (req, res) => {
   new ApiResponse(200, order, "جزئیات سفارش").send(res);
 });
 
-// ---------- ادمین ----------
 export const listAllOrders = asyncHandler(async (req, res) => {
   const page = toPositiveInt(req.query.page, 1);
   const limit = toPositiveInt(req.query.limit, 20, 100);
   const { status, paymentStatus = "all", attention } = req.query;
+
+  if (status && !STATUS_LABELS[status]) throw ApiError.badRequest("وضعیت نامعتبر است");
+  if (!["all", "paid", "unpaid"].includes(paymentStatus)) {
+    throw ApiError.badRequest("وضعیت پرداخت نامعتبر است");
+  }
 
   const fromDate = parseDate(req.query.from);
   const toDate = parseDate(req.query.to);
@@ -151,21 +161,16 @@ export const listAllOrders = asyncHandler(async (req, res) => {
     throw ApiError.badRequest("بازه تاریخ نامعتبر است");
   }
 
-  const paymentFilter =
-    paymentStatus === "paid"
-      ? { paymentStatus: "paid" }
-      : paymentStatus === "unpaid"
-        ? { paymentStatus: { $in: ["pending", "failed"] } }
-        : {};
-
-  const filter = { ...paymentFilter };
-  if (status) filter.status = status;
-  if (attention === "1") filter.stockDeductionFailed = true;
+  // شرایط پایه: پرداخت + تاریخ + جستجو (بدون وضعیت)
+  const base = [];
+  if (paymentStatus === "paid") base.push({ paymentStatus: "paid" });
+  if (paymentStatus === "unpaid") base.push({ paymentStatus: { $in: ["pending", "failed"] } });
 
   if (fromDate || toDate) {
-    filter.createdAt = {};
-    if (fromDate) filter.createdAt.$gte = fromDate;
-    if (toDate) filter.createdAt.$lte = toDate;
+    const range = {};
+    if (fromDate) range.$gte = fromDate;
+    if (toDate) range.$lte = toDate;
+    base.push({ createdAt: range });
   }
 
   const term = normalizeDigits(String(req.query.search || "")).trim();
@@ -183,34 +188,43 @@ export const listAllOrders = asyncHandler(async (req, res) => {
       { "address.receiverPhone": regex },
     ];
 
-    // جستجو با کد کوتاه سفارش (همون ۶ رقم آخر که مشتری می‌بینه) یا شناسه کامل
+    // جستجو با کد کوتاه سفارش (۶ رقم آخر که مشتری می‌بینه) یا شناسه کامل
     if (/^[0-9a-f]{3,24}$/i.test(term)) {
       or.push({
         $expr: { $regexMatch: { input: { $toString: "$_id" }, regex: `${term}$`, options: "i" } },
       });
     }
-    filter.$or = or;
+    base.push({ $or: or });
   }
 
-  const [orders, total, countsAgg] = await Promise.all([
-    OrderMd.find(filter)
+  // «نیازمند بررسی» = مشکل موجودی در سفارشی که لغو نشده (هماهنگ با داشبورد)
+  const attentionConditions = [{ stockDeductionFailed: true }, { status: { $ne: "canceled" } }];
+
+  const scope = attention === "1" ? [...base, ...attentionConditions] : base;
+  const listConditions = status ? [...scope, { status }] : scope;
+
+  const [orders, total, countsAgg, attentionCount] = await Promise.all([
+    OrderMd.find(andOf(listConditions))
+      .select("-statusHistory -paymentAuthority")
       .populate("user", "name phone")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean(),
-    OrderMd.countDocuments(filter),
+    OrderMd.countDocuments(andOf(listConditions)),
+    // شمارنده‌ی تب‌ها با همه فیلترها (به‌جز خود وضعیت) هماهنگه
     OrderMd.aggregate([
-      { $match: paymentFilter },
+      { $match: andOf(scope) },
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]),
+    OrderMd.countDocuments(andOf([...base, ...attentionConditions])),
   ]);
 
   const counts = Object.fromEntries(countsAgg.map((c) => [c._id, c.count]));
 
   new ApiResponse(
     200,
-    { orders, total, page, pages: Math.ceil(total / limit) || 1, counts },
+    { orders, total, page, pages: Math.ceil(total / limit) || 1, counts, attentionCount },
     "لیست سفارش‌ها"
   ).send(res);
 });
@@ -278,7 +292,17 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   // شرط status تضمین می‌کنه دو ادمین همزمان، وضعیت رو دوبار عوض نکنن
   const updated = await OrderMd.findOneAndUpdate(
     { _id: order._id, status: order.status },
-    { $set: set, $push: { statusHistory: { status, at: now, by: req.user._id } } },
+    {
+      $set: set,
+      $push: {
+        statusHistory: {
+          status,
+          at: now,
+          by: req.user._id,
+          ...(status === "processing" && { note: "وضعیت توسط مدیر اصلاح شد" }),
+        },
+      },
+    },
     { new: true }
   );
   if (!updated) throw ApiError.conflict("وضعیت سفارش همزمان تغییر کرد؛ صفحه را رفرش کنید");
@@ -371,4 +395,30 @@ export const deleteMyOrder = asyncHandler(async (req, res) => {
   }
 
   new ApiResponse(200, null, "سفارش حذف شد").send(res);
+});
+
+export const resolveStockIssue = asyncHandler(async (req, res) => {
+  const existing = await OrderMd.findById(req.params.id);
+  if (!existing) throw ApiError.notFound("سفارش یافت نشد");
+  if (!existing.stockDeductionFailed) throw ApiError.badRequest("این سفارش مشکل موجودی ندارد");
+
+  const now = new Date();
+  const updated = await OrderMd.findOneAndUpdate(
+    { _id: existing._id, stockDeductionFailed: true },
+    {
+      $set: { stockDeductionFailed: false },
+      $push: {
+        statusHistory: {
+          status: existing.status,
+          at: now,
+          by: req.user._id,
+          note: "مشکل موجودی بررسی و رفع شد",
+        },
+      },
+    },
+    { new: true }
+  );
+  if (!updated) throw ApiError.conflict("این سفارش همزمان تغییر کرد؛ صفحه را رفرش کنید");
+
+  new ApiResponse(200, { order: updated }, "مشکل موجودی ثبت شد").send(res);
 });

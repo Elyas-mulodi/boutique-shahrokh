@@ -15,6 +15,7 @@ router.get("/shipping-quote", OrderCn.getShippingQuote);
 router.get("/", authorize("admin"), OrderCn.listAllOrders);
 router.get("/:id", OrderCn.getOrderById);
 router.patch("/:id/status", authorize("admin"), validate(updateStatusSchema), OrderCn.updateOrderStatus);
+router.post("/:id/resolve-stock", authorize("admin"), OrderCn.resolveStockIssue);
 
 router.delete("/:id", OrderCn.deleteMyOrder);
 

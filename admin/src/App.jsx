@@ -4,9 +4,12 @@ import AdminLayout from "./components/layout/AdminLayout";
 import ScrollToTop from "./components/layout/ScrollToTop";
 import LoginPage from "./pages/Login/LoginPage";
 import DashboardPage from "./pages/Dashboard/DashboardPage";
+import ReportsPage from "./pages/Reports/ReportsPage";
+import OrdersPage from "./pages/Orders/OrdersPage";
+import OrderDetailPage from "./pages/Orders/OrderDetailPage";
+import OrderPrintPage from "./pages/Orders/OrderPrintPage";
 import ComingSoonPage from "./pages/Placeholder/ComingSoonPage";
 import NotFoundPage from "./pages/NotFound/NotFoundPage";
-import ReportsPage from "./pages/Reports/ReportsPage";
 
 function App() {
   return (
@@ -16,13 +19,14 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
 
         <Route element={<AdminGuard />}>
+          {/* چاپ: بدون سایدبار */}
+          <Route path="orders/:id/print/:type" element={<OrderPrintPage />} />
+
           <Route element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
-            <Route path="reports" element={<ReportsPage />} />{" "}
-            <Route
-              path="orders"
-              element={<ComingSoonPage title="سفارش‌ها" />}
-            />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="orders" element={<OrdersPage />} />
+            <Route path="orders/:id" element={<OrderDetailPage />} />
             <Route
               path="products"
               element={<ComingSoonPage title="محصولات" />}
