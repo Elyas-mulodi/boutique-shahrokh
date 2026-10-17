@@ -10,6 +10,9 @@ import OrderDetailPage from "./pages/Orders/OrderDetailPage";
 import OrderPrintPage from "./pages/Orders/OrderPrintPage";
 import ComingSoonPage from "./pages/Placeholder/ComingSoonPage";
 import NotFoundPage from "./pages/NotFound/NotFoundPage";
+import ProductsPage from "./pages/Products/ProductsPage";
+import ProductCreatePage from "./pages/Products/ProductCreatePage";
+import ProductEditPage from "./pages/Products/ProductEditPage";
 
 function App() {
   return (
@@ -27,10 +30,9 @@ function App() {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="orders/:id" element={<OrderDetailPage />} />
-            <Route
-              path="products"
-              element={<ComingSoonPage title="محصولات" />}
-            />
+            <Route path="products" element={<ProductsPage />} />
+            <Route path="products/new" element={<ProductCreatePage />} />
+            <Route path="products/:id/edit" element={<ProductEditPage />} />
             <Route
               path="categories"
               element={<ComingSoonPage title="دسته‌بندی‌ها" />}

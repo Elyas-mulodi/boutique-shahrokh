@@ -10,6 +10,7 @@ router.get("/", CategoryCn.getTree); // عمومی
 router.get("/:slug", CategoryCn.getBySlug); // عمومی
 
 router.use(protect, authorize("admin"));
+router.get("/admin/list", CategoryCn.adminList);
 router.post("/", validate(createCategorySchema), CategoryCn.create);
 router.patch("/:id", validate(updateCategorySchema), CategoryCn.update);
 router.delete("/:id", CategoryCn.remove);

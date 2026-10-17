@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.use(protect, authorize("admin"));
 
-router.post("/products", upload.array("images", 6), MediaCn.uploadProductImages);
-router.delete("/products/:filename", MediaCn.deleteProductImage);
+router.post("/products", upload.array("images", 10), MediaCn.uploadProductImages);
+router.post("/categories", upload.single("image"), MediaCn.uploadCategoryImage);
 
 export default router;

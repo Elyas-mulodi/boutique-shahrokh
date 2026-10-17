@@ -1,39 +1,46 @@
-import sharp from "sharp";
+import crypto from "crypto";
 import path from "path";
-import fs from "fs";
+import sharp from "sharp";
 import asyncHandler from "../../Utils/asyncHandler.js";
 import ApiResponse from "../../Utils/ApiResponse.js";
 import ApiError from "../../Utils/ApiError.js";
-import { uploadDir } from "../../Config/multer.js";
+import env from "../../Config/env.js";
+import { uploadFolders } from "../../Config/multer.js";
+import { removeUploadedFiles } from "../../Utils/files.js";
+
+async function saveImages(files, kind) {
+  const urls = [];
+
+  try {
+    for (const file of files) {
+      const filename = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.webp`;
+
+      await sharp(file.buffer)
+        .rotate()
+        .resize({ width: 1200, height: 1600, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toFile(path.join(uploadFolders[kind], filename));
+
+      urls.push(`${env.PUBLIC_URL}/uploads/${kind}/${filename}`);
+    }
+  } catch {
+    await removeUploadedFiles(urls); // اگه یکی خراب بود، بقیه هم پاک بشن
+    throw ApiError.badRequest("یکی از تصاویر معتبر نیست یا پردازش نشد");
+  }
+
+  return urls;
+}
 
 export const uploadProductImages = asyncHandler(async (req, res) => {
-  if (!req.files || req.files.length === 0) {
-    throw ApiError.badRequest("هیچ تصویری ارسال نشده است");
-  }
+  if (!req.files?.length) throw ApiError.badRequest("هیچ تصویری ارسال نشده است");
 
-  const savedFiles = [];
-
-  for (const file of req.files) {
-    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.webp`;
-    const filePath = path.join(uploadDir, filename);
-
-    await sharp(file.buffer)
-      .resize(1000, 1000, { fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 80 })
-      .toFile(filePath);
-
-    savedFiles.push(`/uploads/products/${filename}`);
-  }
-
-  new ApiResponse(201, { urls: savedFiles }, "تصاویر با موفقیت آپلود شدند").send(res);
+  const urls = await saveImages(req.files, "products");
+  new ApiResponse(201, { urls }, "تصاویر آپلود شدند").send(res);
 });
 
-export const deleteProductImage = asyncHandler(async (req, res) => {
-  const { filename } = req.params;
-  const filePath = path.join(uploadDir, filename);
+export const uploadCategoryImage = asyncHandler(async (req, res) => {
+  if (!req.file) throw ApiError.badRequest("تصویری ارسال نشده است");
 
-  if (!fs.existsSync(filePath)) throw ApiError.notFound("فایل یافت نشد");
-
-  fs.unlinkSync(filePath);
-  new ApiResponse(200, null, "تصویر حذف شد").send(res);
+  const [url] = await saveImages([req.file], "categories");
+  new ApiResponse(201, { url }, "تصویر آپلود شد").send(res);
 });

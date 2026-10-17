@@ -33,8 +33,35 @@ async function serializeCart(cart) {
   return data;
 }
 
+// سبد با کاتالوگ هماهنگ میشه: محصول غیرفعال/حذف‌شده و تنوع حذف‌شده برداشته میشن، قیمت‌ها بروز میشن
+async function syncCartWithCatalog(cart) {
+  if (cart.items.length === 0) return;
+
+  const products = await ProductMd.find({ _id: { $in: cart.items.map((i) => i.product) } })
+    .select("isActive price variants._id")
+    .lean();
+  const byId = new Map(products.map((p) => [String(p._id), p]));
+
+  let changed = false;
+  for (const item of [...cart.items]) {
+    const product = byId.get(String(item.product));
+    const variantExists = product?.variants.some((v) => String(v._id) === String(item.variantId));
+
+    if (!product || !product.isActive || !variantExists) {
+      item.deleteOne();
+      changed = true;
+    } else if (item.price !== product.price) {
+      item.price = product.price;
+      changed = true;
+    }
+  }
+
+  if (changed) await cart.save();
+}
+
 export const getCart = asyncHandler(async (req, res) => {
   const cart = await getOrCreateCart(req.user._id);
+  await syncCartWithCatalog(cart);
   new ApiResponse(200, await serializeCart(cart), "سبد خرید").send(res);
 });
 

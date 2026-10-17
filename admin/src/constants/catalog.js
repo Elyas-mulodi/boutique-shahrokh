@@ -1,0 +1,31 @@
+export const COLOR_PRESETS = [
+  { name: "مشکی", hex: "#121212" },
+  { name: "سفید", hex: "#fafafa" },
+  { name: "طوسی", hex: "#9ca3af" },
+  { name: "سرمه‌ای", hex: "#1e3a8a" },
+  { name: "آبی", hex: "#2d4fff" },
+  { name: "قرمز", hex: "#dc2626" },
+  { name: "صورتی", hex: "#f4a6c0" },
+  { name: "سبز", hex: "#16a34a" },
+  { name: "زرد", hex: "#facc15" },
+  { name: "نارنجی", hex: "#f97316" },
+  { name: "قهوه‌ای", hex: "#7b4b2a" },
+  { name: "کرم", hex: "#e8dcc8" },
+  { name: "بنفش", hex: "#7c3aed" },
+];
+
+export const SIZE_PRESETS = [
+  "XS",
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL",
+  "36",
+  "38",
+  "40",
+  "42",
+  "44",
+  "46",
+  "یک‌سایز",
+];

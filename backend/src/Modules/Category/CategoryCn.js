@@ -2,6 +2,28 @@ import asyncHandler from "../../Utils/asyncHandler.js";
 import ApiResponse from "../../Utils/ApiResponse.js";
 import ApiError from "../../Utils/ApiError.js";
 import CategoryMd from "./CategoryMd.js";
+import ProductMd from "../Product/ProductMd.js";
+
+export const adminList = asyncHandler(async (req, res) => {
+  const [categories, productCounts] = await Promise.all([
+    CategoryMd.find().sort({ createdAt: 1 }).lean(),
+    ProductMd.aggregate([{ $group: { _id: "$category", count: { $sum: 1 } } }]),
+  ]);
+
+  const counts = new Map(productCounts.map((c) => [String(c._id), c.count]));
+  const childCounts = new Map();
+  categories.forEach((c) => {
+    if (c.parent) childCounts.set(String(c.parent), (childCounts.get(String(c.parent)) || 0) + 1);
+  });
+
+  const data = categories.map((c) => ({
+    ...c,
+    productsCount: counts.get(String(c._id)) || 0,
+    childrenCount: childCounts.get(String(c._id)) || 0,
+  }));
+
+  new ApiResponse(200, data, "لیست دسته‌بندی‌ها").send(res);
+});
 
 export const create = asyncHandler(async (req, res) => {
   const exists = await CategoryMd.findOne({ slug: req.body.slug });

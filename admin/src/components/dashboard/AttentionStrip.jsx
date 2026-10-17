@@ -1,5 +1,11 @@
 import { Link } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, Clock, PackageX, Truck } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  PackageX,
+  Truck,
+} from "lucide-react";
 import { formatNumber } from "../../utils/format";
 
 const tones = {
@@ -40,7 +46,7 @@ function AttentionStrip({ overview }) {
       tone: "danger",
       icon: PackageX,
       text: `${formatNumber(products.outOfStockVariants)} تنوع محصول تمام‌شده`,
-      to: "/products?stock=out",
+      to: "/products?stock=out&status=active",
     });
   }
   if (products.lowStockVariants > 0) {
@@ -49,7 +55,7 @@ function AttentionStrip({ overview }) {
       tone: "warning",
       icon: PackageX,
       text: `${formatNumber(products.lowStockVariants)} تنوع محصول با موجودی کم`,
-      to: "/products?stock=low",
+      to: "/products?stock=low&status=active",
     });
   }
   if (orders.unpaid > 0) {
@@ -64,7 +70,9 @@ function AttentionStrip({ overview }) {
 
   if (items.length === 0) {
     return (
-      <div className={`mb-6 flex items-center gap-3 rounded-2xl border p-4 text-sm ${tones.success}`}>
+      <div
+        className={`mb-6 flex items-center gap-3 rounded-2xl border p-4 text-sm ${tones.success}`}
+      >
         <CheckCircle2 size={20} />
         مورد نیازمند اقدامی وجود ندارد.
       </div>

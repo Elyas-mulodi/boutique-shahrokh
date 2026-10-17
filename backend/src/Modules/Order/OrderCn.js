@@ -53,7 +53,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     orderItems.push({
-      product: item.product,
+      price: product.price,
       variantId: item.variantId,
       name: product.name,
       image: product.images?.[0] || null,
@@ -64,8 +64,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  const rawAmount = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-
+  const rawAmount = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  
   // تخفیف (روی قیمت کالاها اعمال میشه، نه روی هزینه ارسال)
   let discountAmount = 0;
   let couponDoc = null;
