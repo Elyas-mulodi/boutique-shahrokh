@@ -7,3 +7,10 @@ export const uploadProductImages = (files) => {
 
   return axiosInstance.post("/media/products", form, { timeout: 120000 }).then((res) => res.data.data.urls);
 };
+
+export const uploadCategoryImage = (file) => {
+  const form = new FormData();
+  form.append("image", file);
+
+  return axiosInstance.post("/media/categories", form, { timeout: 60000 }).then((res) => res.data.data.url);
+};

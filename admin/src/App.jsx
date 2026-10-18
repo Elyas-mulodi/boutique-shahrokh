@@ -13,6 +13,7 @@ import NotFoundPage from "./pages/NotFound/NotFoundPage";
 import ProductsPage from "./pages/Products/ProductsPage";
 import ProductCreatePage from "./pages/Products/ProductCreatePage";
 import ProductEditPage from "./pages/Products/ProductEditPage";
+import CategoriesPage from "./pages/Categories/CategoriesPage";
 
 function App() {
   return (
@@ -33,10 +34,7 @@ function App() {
             <Route path="products" element={<ProductsPage />} />
             <Route path="products/new" element={<ProductCreatePage />} />
             <Route path="products/:id/edit" element={<ProductEditPage />} />
-            <Route
-              path="categories"
-              element={<ComingSoonPage title="دسته‌بندی‌ها" />}
-            />
+            <Route path="categories" element={<CategoriesPage />} />
             <Route path="users" element={<ComingSoonPage title="کاربران" />} />
             <Route
               path="coupons"
