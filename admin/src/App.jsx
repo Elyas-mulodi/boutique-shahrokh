@@ -14,6 +14,8 @@ import ProductsPage from "./pages/Products/ProductsPage";
 import ProductCreatePage from "./pages/Products/ProductCreatePage";
 import ProductEditPage from "./pages/Products/ProductEditPage";
 import CategoriesPage from "./pages/Categories/CategoriesPage";
+import UserDetailPage from "./pages/Users/UserDetailPage";
+import UsersPage from "./pages/Users/UsersPage";
 
 function App() {
   return (
@@ -35,7 +37,8 @@ function App() {
             <Route path="products/new" element={<ProductCreatePage />} />
             <Route path="products/:id/edit" element={<ProductEditPage />} />
             <Route path="categories" element={<CategoriesPage />} />
-            <Route path="users" element={<ComingSoonPage title="کاربران" />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="users/:id" element={<UserDetailPage />} />{" "}
             <Route
               path="coupons"
               element={<ComingSoonPage title="کدهای تخفیف" />}

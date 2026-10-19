@@ -27,3 +27,9 @@ export const changePasswordSchema = z.object({
     .string({ required_error: "رمز عبور جدید الزامی است" })
     .min(6, "رمز عبور جدید باید حداقل ۶ کاراکتر باشد"),
 });
+export const blockUserSchema = z.object({
+  blocked: z.boolean({
+    required_error: "وضعیت مسدودسازی الزامی است",
+    invalid_type_error: "وضعیت مسدودسازی نامعتبر است",
+  }),
+});
