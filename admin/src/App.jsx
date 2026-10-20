@@ -16,6 +16,7 @@ import ProductEditPage from "./pages/Products/ProductEditPage";
 import CategoriesPage from "./pages/Categories/CategoriesPage";
 import UserDetailPage from "./pages/Users/UserDetailPage";
 import UsersPage from "./pages/Users/UsersPage";
+import CouponsPage from "./pages/Coupons/CouponsPage";
 
 function App() {
   return (
@@ -39,10 +40,7 @@ function App() {
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="users/:id" element={<UserDetailPage />} />{" "}
-            <Route
-              path="coupons"
-              element={<ComingSoonPage title="کدهای تخفیف" />}
-            />
+            <Route path="coupons" element={<CouponsPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

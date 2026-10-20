@@ -7,7 +7,7 @@ import CartMd from "../Cart/CartMd.js";
 import ProductMd from "../Product/ProductMd.js";
 import UserMd from "../User/UserMd.js";
 import CouponMd from "../Coupon/CouponMd.js";
-import { validateAndCalculate } from "../Coupon/CouponCn.js";
+import { validateAndCalculate, claimCouponUse, releaseCouponUse } from "../Coupon/CouponCn.js";
 import { requestZarinpalPayment } from "../Payment/PaymentCn.js";
 import { escapeRegex, normalizeDigits, parseDate, toPositiveInt } from "../../Utils/text.js";
 
@@ -40,7 +40,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw ApiError.badRequest("سبد خرید شما خالی است");
   }
 
-  // چک موجودی (بدون کسر) + ساخت آیتم‌های سفارش با اسم و عکس محصول
+  // چک موجودی (بدون کسر) + ساخت آیتم‌های سفارش با اسم، عکس و قیمت فعلی محصول
   const orderItems = [];
   for (const item of cart.items) {
     const product = await ProductMd.findById(item.product);
@@ -53,61 +53,80 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     orderItems.push({
-      price: product.price,
+      product: item.product,
       variantId: item.variantId,
       name: product.name,
       image: product.images?.[0] || null,
       size: item.size,
       color: item.color,
       quantity: item.quantity,
-      price: item.price,
+      price: product.price,
     });
   }
 
   const rawAmount = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  
-  // تخفیف (روی قیمت کالاها اعمال میشه، نه روی هزینه ارسال)
+
+  // کد تخفیف: اعتبارسنجی، بعد رزرو اتمیک یک بار استفاده (جلوگیری از عبور از سقف با درخواست‌های همزمان)
   let discountAmount = 0;
   let couponDoc = null;
+
   if (couponCode) {
     const result = await validateAndCalculate(couponCode, rawAmount);
+    couponDoc = await claimCouponUse(result.coupon._id);
+    if (!couponDoc) {
+      throw ApiError.badRequest("ظرفیت استفاده از این کد تخفیف تمام شده یا کد دیگر معتبر نیست");
+    }
     discountAmount = result.discountAmount;
-    couponDoc = result.coupon;
   }
 
-  // هزینه ارسال بر اساس شهر آدرس
   const { zone, cost: shippingCost } = calculateShipping(address.city);
   const payableAmount = rawAmount - discountAmount + shippingCost;
 
-  const order = await OrderMd.create({
-    user: req.user._id,
-    items: orderItems,
-    address,
-    totalAmount: payableAmount,
-    couponCode: couponDoc?.code || null,
-    discountAmount,
-    shippingCost,
-    shippingZone: zone,
-  });
+  let order;
+  try {
+    order = await OrderMd.create({
+      user: req.user._id,
+      items: orderItems,
+      address,
+      totalAmount: payableAmount,
+      couponCode: couponDoc?.code || null,
+      discountAmount,
+      shippingCost,
+      shippingZone: zone,
+    });
+  } catch (err) {
+    await releaseCouponUse(couponDoc?.code);
+    throw err;
+  }
 
   await UserMd.findByIdAndUpdate(req.user._id, { defaultAddress: address });
 
-  if (couponDoc) {
-    await CouponMd.findByIdAndUpdate(couponDoc._id, { $inc: { usedCount: 1 } });
+  let payment;
+  try {
+    payment = await requestZarinpalPayment({
+      amount: payableAmount,
+      description: `پرداخت سفارش بوتیک شاهرخ - شماره ${order._id}`,
+      mobile: req.user.phone,
+    });
+  } catch (err) {
+    // خطای درگاه: سفارش پرداخت‌نشده نمی‌مونه و ظرفیت کوپن آزاد میشه
+    await OrderMd.deleteOne({ _id: order._id });
+    await releaseCouponUse(couponDoc?.code);
+    throw err;
   }
 
-  const { authority, paymentUrl } = await requestZarinpalPayment({
-    amount: payableAmount,
-    description: `پرداخت سفارش بوتیک شاهرخ - شماره ${order._id}`,
-    mobile: req.user.phone,
-  });
-
-  order.paymentAuthority = authority;
+  order.paymentAuthority = payment.authority;
   await order.save();
 
   new ApiResponse(
     201,
-    { orderId: order._id, payableAmount, discountAmount, shippingCost, paymentUrl },
+    {
+      orderId: order._id,
+      payableAmount,
+      discountAmount,
+      shippingCost,
+      paymentUrl: payment.paymentUrl,
+    },
     "سفارش ثبت شد، به درگاه پرداخت هدایت شوید"
   ).send(res);
 });

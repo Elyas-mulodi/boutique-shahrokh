@@ -92,5 +92,6 @@ const orderSchema = new Schema(
 
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ paymentStatus: 1, status: 1, createdAt: -1 });
+orderSchema.index({ couponCode: 1 }, { partialFilterExpression: { couponCode: { $type: "string" } } });
 
 export default mongoose.model("Order", orderSchema);
