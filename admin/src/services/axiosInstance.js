@@ -13,7 +13,6 @@ axiosInstance.interceptors.request.use((config) => {
   return config;
 });
 
-// با ۴۰۱ (توکن نامعتبر یا منقضی) از پنل خارج میشیم؛ ورود ناموفق مستثنیه
 export function attachAuthInterceptor(onUnauthorized) {
   axiosInstance.interceptors.response.use(
     (response) => response,

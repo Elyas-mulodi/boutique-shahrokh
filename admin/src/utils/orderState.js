@@ -16,10 +16,8 @@ export function getOrderState(order) {
   return "inconsistent";
 }
 
-// مشکل موجودی در سفارشی که لغو نشده
 export const needsAttention = (order) =>
   Boolean(order.stockDeductionFailed) && order.status !== "canceled";
 
-// فاکتور و برچسب فقط برای سفارش پرداخت‌شده و لغونشده
 export const isPrintable = (order) =>
   order.paymentStatus === "paid" && order.status !== "canceled";

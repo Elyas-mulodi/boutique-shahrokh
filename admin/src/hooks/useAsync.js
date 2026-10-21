@@ -1,12 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getErrorMessage } from "../utils/error";
 
-/**
- * اجرای یک درخواست async با وضعیت loading/error و reload.
- * - با تغییر deps دوباره اجرا میشه
- * - داده‌ی قبلی تا رسیدن داده‌ی جدید نگه داشته میشه
- * - پاسخ‌های کهنه نادیده گرفته میشن
- */
 export function useAsync(fn, deps = []) {
   const [state, setState] = useState({ data: null, loading: true, error: null, errorStatus: null });
   const fnRef = useRef(fn);

@@ -15,7 +15,6 @@ export const listUsers = (params) =>
 export const getUserDetail = (id) =>
   axiosInstance.get(`/users/${id}`).then((res) => res.data.data);
 
-// خروجی کامل {message, data} تا پیام سرور تو توست نمایش داده بشه
 export const setUserBlocked = (id, blocked) =>
   axiosInstance
     .patch(`/users/${id}/block`, { blocked })

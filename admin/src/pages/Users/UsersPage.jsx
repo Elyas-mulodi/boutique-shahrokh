@@ -50,14 +50,13 @@ function UsersPage() {
           if (value === "" || value === null || value === undefined) next.delete(key);
           else next.set(key, String(value));
         });
-        if (!("page" in patch)) next.delete("page"); // تغییر فیلتر = برگشت به صفحه ۱
+        if (!("page" in patch)) next.delete("page"); 
         return next;
       }, options);
     },
     [setSearchParams]
   );
 
-  // جستجو با تاخیر ۴۰۰ میلی‌ثانیه
   const [searchText, setSearchText] = useState(urlSearch);
 
   useEffect(() => {
@@ -81,7 +80,6 @@ function UsersPage() {
   );
   const data = users.data;
 
-  // اگه صفحه از تعداد صفحات بیشتر شد (بعد از فیلتر)، به آخرین صفحه برگرد
   useEffect(() => {
     if (data && data.pages && page > data.pages) {
       update({ page: data.pages > 1 ? data.pages : "" }, { replace: true });

@@ -61,7 +61,6 @@ if (env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// تصاویر آپلودشده؛ helmet به‌صورت پیش‌فرض نمایش عکس از origin دیگه (فروشگاه/پنل) رو می‌بنده
 app.use(
   "/uploads",
   (req, res, next) => {

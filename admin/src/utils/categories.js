@@ -1,6 +1,5 @@
 import { normalizeDigits } from "./text";
 
-// باید با MAX_DEPTH بک‌اند یکی باشد
 export const MAX_CATEGORY_DEPTH = 3;
 
 const normalizeText = (value = "") =>
@@ -44,7 +43,6 @@ export function getDescendantIds(index, id) {
   return result;
 }
 
-// ریشه = ۱
 export function getDepth(index, id) {
   let depth = 1;
   let current = index.byId.get(String(id));
@@ -62,7 +60,6 @@ export function getDepth(index, id) {
   return depth;
 }
 
-// برگ = ۱
 export function getSubtreeHeight(index, id) {
   let max = 1;
   const stack = [[String(id), 1]];
@@ -80,7 +77,6 @@ export function getSubtreeHeight(index, id) {
   return max;
 }
 
-// لیست تخت → ترتیب درختی (والد، بعد فرزندان) با عمق (از صفر) و برچسب
 export function flattenCategories(list = []) {
   const index = buildIndex(list);
   const result = [];
@@ -105,7 +101,6 @@ export function flattenCategories(list = []) {
   return result;
 }
 
-// گزینه‌های «والد» برای فرم؛ خود دسته، زیرمجموعه‌هاش و والدهایی که عمق مجاز رو رد می‌کنن غیرفعالن
 export function getParentOptions(list = [], editingId = null) {
   const index = buildIndex(list);
   const blocked = new Set();
@@ -130,7 +125,6 @@ export function getParentOptions(list = [], editingId = null) {
   });
 }
 
-// جستجو بین نام و آدرس؛ والدهای نتایج هم برای حفظ ساختار نمایش داده میشن
 export function filterCategories(rows = [], term = "") {
   const needle = normalizeText(term);
   if (!needle) return rows;

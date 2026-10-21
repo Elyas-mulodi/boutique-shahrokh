@@ -8,13 +8,11 @@ const keyFormatter = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
-// شروع روز (۰۰:۰۰ تهران)
 export function startOfTehranDay(date = new Date()) {
   const [y, m, d] = keyFormatter.format(date).split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d) - TEHRAN_OFFSET_MS);
 }
 
-// "today" | "7" | "30" | "90" | "" → ابتدای بازه
 export function rangeToFrom(range) {
   if (!range) return null;
   const today = startOfTehranDay();

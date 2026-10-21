@@ -4,12 +4,7 @@ import CouponMd from "../Modules/Coupon/CouponMd.js";
 import env from "../Config/env.js";
 import logger from "../Config/logger.js";
 
-/**
- * هر ساعت اجرا میشه و سفارش‌هایی که هیچ‌وقت پرداخت نشدن (pending یا failed)
- * و بیشتر از UNPAID_ORDER_DELETE_HOURS ساعت از ساختشون گذشته رو کامل حذف می‌کنه.
- * سفارش‌های پرداخت‌شده هیچ‌وقت حذف نمیشن (حتی اگه بعداً لغو بشن).
- * یک بار استفاده از کد تخفیفِ سفارش حذف‌شده هم به کوپن برگردونده میشه.
- */
+
 export function startDeleteStaleUnpaidOrdersJob() {
   cron.schedule("0 * * * *", async () => {
     const cutoff = new Date(Date.now() - env.UNPAID_ORDER_DELETE_HOURS * 60 * 60 * 1000);
@@ -23,7 +18,6 @@ export function startDeleteStaleUnpaidOrdersJob() {
       let deleted = 0;
 
       for (const { _id } of stale) {
-        // شرط paymentStatus دوباره چک میشه تا اگه همین لحظه پرداخت شد، حذف نشه
         const removed = await OrderMd.findOneAndDelete({
           _id,
           paymentStatus: { $in: ["pending", "failed"] },

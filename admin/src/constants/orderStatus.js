@@ -1,4 +1,3 @@
-// دسته‌های وضعیت (کلیدها با خروجی order-status بک‌اند یکی است)
 export const ORDER_STATUS = {
   pending_payment: {
     label: "در انتظار پرداخت",

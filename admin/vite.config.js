@@ -4,5 +4,5 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  server: { port: 5174, strictPort: true }, // باید با ADMIN_URL بک‌اند یکی باشه
+  server: { port: 5174, strictPort: true }, 
 });

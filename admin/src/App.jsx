@@ -26,7 +26,6 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
 
         <Route element={<AdminGuard />}>
-          {/* چاپ: بدون سایدبار */}
           <Route path="orders/:id/print/:type" element={<OrderPrintPage />} />
 
           <Route element={<AdminLayout />}>

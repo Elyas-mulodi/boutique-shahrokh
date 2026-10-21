@@ -37,7 +37,6 @@ export const JALALI_MONTHS = [
   "اسفند",
 ];
 
-// «کلید روز» = "YYYY-MM-DD" میلادی به وقت تهران؛ «شماره روز» = تعداد روز از 1970-01-01
 const toDayNumber = (y, m, d) => Math.round(Date.UTC(y, m - 1, d) / DAY_MS);
 
 export const keyToDayNumber = (key) => {
@@ -52,7 +51,6 @@ export const isoToKey = (iso) => keyFormatter.format(new Date(iso));
 export const addDaysToKey = (key, days) =>
   dayNumberToKey(keyToDayNumber(key) + days);
 
-// پایان روز تهران (۲۳:۵۹:۵۹.۹۹۹) به‌صورت ISO
 export const endOfDayIso = (key) =>
   new Date(
     new Date(`${key}T00:00:00+03:30`).getTime() + DAY_MS - 1,
@@ -62,7 +60,6 @@ export function formatJalaliKey(key) {
   return longFormatter.format(new Date(`${key}T12:00:00+03:30`));
 }
 
-// تاریخ شمسی یک روز میلادی (ظهر UTC همون روز، تو تهران هم همون تاریخه)
 export function jalaliOfDay(dayNumber) {
   const parts = partsFormatter.formatToParts(
     new Date(dayNumber * DAY_MS + HALF_DAY_MS),
@@ -71,7 +68,6 @@ export function jalaliOfDay(dayNumber) {
   return { year: get("year"), month: get("month"), day: get("day") };
 }
 
-// تاریخ شمسی → شماره روز میلادی (جست‌وجوی دودویی؛ اگه چنین تاریخی وجود نداشته باشه null)
 export function jalaliToDayNumber(year, month, day) {
   const target = year * 10000 + month * 100 + day;
   let low = toDayNumber(year + 621, 1, 1);

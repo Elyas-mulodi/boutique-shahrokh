@@ -1,6 +1,5 @@
 import { normalizeDigits } from "./text";
 
-// نام محصول → آدرس (slug): حروف فارسی و انگلیسی و عدد، با خط تیره
 export function slugify(value = "") {
   return normalizeDigits(value)
     .replace(/ي/g, "ی")

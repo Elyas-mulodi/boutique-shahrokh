@@ -23,7 +23,6 @@ const fullFormatter = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
   year: "numeric",
 });
 
-// کلید روز تهران ("YYYY-MM-DD") → Date ظهر همون روز (دور از مرز نیمه‌شب)
 export const keyToDate = (key) => new Date(`${key}T12:00:00+03:30`);
 
 function addDaysToKey(key, days) {
@@ -37,10 +36,9 @@ function jalaliOf(key) {
   return { year: get("year"), month: get("month"), day: get("day") };
 }
 
-// هفته ایرانی از شنبه شروع میشه
 function weekStartKey(key) {
   const [y, m, d] = key.split("-").map(Number);
-  const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // ۰ = یکشنبه ... ۶ = شنبه
+  const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); 
   return addDaysToKey(key, -((dayOfWeek + 1) % 7));
 }
 
@@ -56,10 +54,7 @@ export function defaultGranularity(days) {
   return "month";
 }
 
-/**
- * series: [{ date: "YYYY-MM-DD", revenue, orders, newUsers }]
- * خروجی: ردیف‌های گروه‌بندی‌شده با label (برای محور) و fullLabel (برای tooltip)
- */
+
 export function bucketSeries(series, granularity) {
   if (granularity === "day") {
     return series.map((row) => {

@@ -2,7 +2,6 @@ import cron from "node-cron";
 import logger from "../Config/logger.js";
 import { sweepOrphanUploads } from "../Utils/files.js";
 
-// هر شب ساعت ۴ صبح
 export function startCleanOrphanUploadsJob() {
   logger.info("🕒 job پاکسازی تصاویر بدون استفاده فعال شد");
 

@@ -25,7 +25,6 @@ export const loginAdmin = createAsyncThunk("auth/login", async (credentials, { r
   try {
     const res = await authApi.login(credentials);
     const { user, token } = res.data.data;
-    // توکن کاربر غیرادمین هیچ‌وقت ذخیره نمیشه
     if (user.role !== "admin") return rejectWithValue("دسترسی به پنل فقط برای مدیران است");
     return { user, token };
   } catch (err) {
@@ -33,7 +32,6 @@ export const loginAdmin = createAsyncThunk("auth/login", async (credentials, { r
   }
 });
 
-// بررسی توکن ذخیره‌شده هنگام باز شدن پنل
 export const verifySession = createAsyncThunk("auth/verify", async (_, { rejectWithValue }) => {
   try {
     const res = await authApi.getMe();
@@ -51,9 +49,9 @@ const authSlice = createSlice({
   initialState: {
     token: localStorage.getItem(TOKEN_KEY),
     user: readUser(),
-    status: "idle", // وضعیت درخواست ورود
+    status: "idle", 
     error: null,
-    verifyStatus: "idle", // idle | loading | succeeded | failed
+    verifyStatus: "idle", 
   },
   reducers: {
     logout: (state) => {
@@ -98,7 +96,7 @@ const authSlice = createSlice({
           clearSession(state);
           state.error = "نشست شما منقضی شده است، دوباره وارد شوید";
         } else {
-          state.verifyStatus = "failed"; // خطای شبکه/سرور؛ توکن نگه داشته میشه
+          state.verifyStatus = "failed"; 
         }
       });
   },

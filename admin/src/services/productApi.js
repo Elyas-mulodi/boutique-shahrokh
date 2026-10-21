@@ -15,7 +15,6 @@ export const listProducts = (params) =>
 export const getProduct = (id) =>
   axiosInstance.get(`/products/admin/${id}`).then((res) => res.data.data);
 
-// خروجی کامل {message, data} تا پیام سرور تو توست نمایش داده بشه
 export const createProduct = (body) =>
   axiosInstance.post("/products", body).then((res) => res.data);
 export const updateProduct = (id, body) =>

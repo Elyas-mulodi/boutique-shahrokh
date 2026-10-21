@@ -4,7 +4,6 @@ const faNumber = new Intl.NumberFormat("fa-IR");
 export const formatNumber = (n) => faNumber.format(Number(n) || 0);
 export const formatToman = (n) => `${formatNumber(n)} تومان`;
 
-// برای محور نمودارها: ۱٫۲ میلیون، ۵۰۰ هزار
 export function formatCompactToman(n) {
   const value = Number(n) || 0;
   if (value >= 1e9) return `${faNumber.format(Math.round(value / 1e8) / 10)} میلیارد`;

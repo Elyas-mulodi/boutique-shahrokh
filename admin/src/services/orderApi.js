@@ -8,7 +8,6 @@ export const listOrders = (params) =>
 
 export const getOrder = (id) => axiosInstance.get(`/orders/${id}`).then((res) => res.data.data);
 
-// خروجی کامل {message, data} تا پیام سرور (مثلاً «موجودی برگشت») تو توست نمایش داده بشه
 export const updateOrderStatus = (id, body) =>
   axiosInstance.patch(`/orders/${id}/status`, body).then((res) => res.data);
 

@@ -13,7 +13,7 @@ Object.values(uploadFolders).forEach((dir) => fs.mkdirSync(dir, { recursive: tru
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const upload = multer({
-  storage: multer.memoryStorage(), // فایل خام میاد تو حافظه، بعد با sharp پردازش و ذخیره میشه
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
     if (!ALLOWED_TYPES.includes(file.mimetype)) {
       return cb(ApiError.badRequest("فقط فرمت‌های jpg، png و webp مجاز است"));
