@@ -44,41 +44,6 @@ function getStatus(coupon, now) {
   return "active";
 }
 
-// ---------- منطق مشترک (فروشگاه) ----------
-export async function validateAndCalculate(rawCode, orderAmount) {
-  const code = normalizeDigits(String(rawCode || ""))
-    .trim()
-    .toUpperCase();
-
-  const coupon = await CouponMd.findOne({ code, isActive: true });
-  if (!coupon) throw ApiError.notFound("کد تخفیف یافت نشد یا غیرفعال است");
-  if (coupon.expiresAt <= new Date()) throw ApiError.badRequest("کد تخفیف منقضی شده است");
-
-  if (
-    coupon.usageLimit !== null &&
-    coupon.usageLimit !== undefined &&
-    coupon.usedCount >= coupon.usageLimit
-  ) {
-    throw ApiError.badRequest("سقف استفاده از این کد تخفیف پر شده است");
-  }
-
-  const minOrder = coupon.minOrderAmount || 0;
-  if (orderAmount < minOrder) {
-    throw ApiError.badRequest(
-      `حداقل مبلغ سفارش برای این کد ${minOrder.toLocaleString("fa-IR")} تومان است`
-    );
-  }
-
-  let discountAmount =
-    coupon.type === "percent" ? Math.floor((orderAmount * coupon.value) / 100) : coupon.value;
-  if (coupon.type === "percent" && coupon.maxDiscount) {
-    discountAmount = Math.min(discountAmount, coupon.maxDiscount);
-  }
-  discountAmount = Math.min(discountAmount, orderAmount); // تخفیف بیشتر از مبلغ سفارش نمیشه
-
-  return { coupon, discountAmount };
-}
-
 // رزرو اتمیک یک بار استفاده؛ اگه همزمان ظرفیت تموم شده باشه null برمی‌گردونه
 export function claimCouponUse(couponId) {
   return CouponMd.findOneAndUpdate(
@@ -234,6 +199,12 @@ export const create = asyncHandler(async (req, res) => {
   const expiresAt = new Date(body.expiresAt);
   if (expiresAt <= new Date()) throw ApiError.badRequest("تاریخ انقضا باید در آینده باشد");
 
+  const minOrder = body.minOrderAmount ?? 0;
+  const maxOrder = body.maxOrderAmount ?? null;
+  if (maxOrder !== null && maxOrder < minOrder) {
+    throw ApiError.badRequest("حداکثر مبلغ سفارش نمی‌تواند کمتر از حداقل آن باشد");
+  }
+
   if (await CouponMd.exists({ code: body.code })) {
     throw ApiError.conflict("این کد تخفیف قبلا ثبت شده است");
   }
@@ -242,8 +213,9 @@ export const create = asyncHandler(async (req, res) => {
     code: body.code,
     type: body.type,
     value: body.value,
-    maxDiscount: body.type === "percent" ? (body.maxDiscount ?? null) : null,
-    minOrderAmount: body.minOrderAmount ?? 0,
+    maxDiscount: body.type === "percent" ? body.maxDiscount ?? null : null,
+    minOrderAmount: minOrder,
+    maxOrderAmount: maxOrder,
     usageLimit: body.usageLimit ?? null,
     expiresAt,
     isActive: body.isActive ?? true,
@@ -260,6 +232,7 @@ export const update = asyncHandler(async (req, res) => {
 
   if (body.expiresAt !== undefined) {
     const next = new Date(body.expiresAt);
+    // تاریخ دست‌نخورده (حتی اگه گذشته باشه) رد نمیشه؛ تاریخ جدید باید آینده باشه
     if (next.getTime() !== coupon.expiresAt.getTime() && next <= new Date()) {
       throw ApiError.badRequest("تاریخ انقضای جدید باید در آینده باشد");
     }
@@ -269,19 +242,22 @@ export const update = asyncHandler(async (req, res) => {
   if (body.value !== undefined) coupon.value = body.value;
   if (body.maxDiscount !== undefined) coupon.maxDiscount = body.maxDiscount;
   if (body.minOrderAmount !== undefined) coupon.minOrderAmount = body.minOrderAmount;
+  if (body.maxOrderAmount !== undefined) coupon.maxOrderAmount = body.maxOrderAmount;
   if (body.usageLimit !== undefined) coupon.usageLimit = body.usageLimit;
   if (body.isActive !== undefined) coupon.isActive = body.isActive;
 
+  // بررسی نهایی روی مقادیر ترکیبی (مثلاً فقط type یا فقط یکی از مرزها تغییر کرده)
   if (coupon.type === "percent" && coupon.value > 100) {
     throw ApiError.badRequest("درصد تخفیف نمی‌تواند بیشتر از ۱۰۰ باشد");
   }
   if (coupon.type === "fixed") coupon.maxDiscount = null;
 
-  if (
-    coupon.usageLimit !== null &&
-    coupon.usageLimit !== undefined &&
-    coupon.usageLimit < coupon.usedCount
-  ) {
+  const minOrder = coupon.minOrderAmount || 0;
+  if (coupon.maxOrderAmount !== null && coupon.maxOrderAmount !== undefined && coupon.maxOrderAmount < minOrder) {
+    throw ApiError.badRequest("حداکثر مبلغ سفارش نمی‌تواند کمتر از حداقل آن باشد");
+  }
+
+  if (coupon.usageLimit !== null && coupon.usageLimit !== undefined && coupon.usageLimit < coupon.usedCount) {
     throw ApiError.badRequest(
       `سقف استفاده نمی‌تواند کمتر از تعداد استفاده‌شده (${coupon.usedCount.toLocaleString("fa-IR")}) باشد`
     );
@@ -306,3 +282,42 @@ export const remove = asyncHandler(async (req, res) => {
 
   new ApiResponse(200, null, "کد تخفیف حذف شد").send(res);
 });
+
+const toman = (n) => `${n.toLocaleString("fa-IR")} تومان`;
+
+function orderRangeMessage(min, max) {
+  if (min > 0 && max !== null) return `این کد تخفیف برای سفارش‌های بین ${toman(min)} تا ${toman(max)} معتبر است`;
+  if (max !== null) return `این کد تخفیف فقط برای سفارش‌های تا ${toman(max)} معتبر است`;
+  return `حداقل مبلغ سفارش برای این کد ${toman(min)} است`;
+}
+
+// ---------- منطق مشترک (فروشگاه) ----------
+export async function validateAndCalculate(rawCode, orderAmount) {
+  const code = normalizeDigits(String(rawCode || "")).trim().toUpperCase();
+
+  const coupon = await CouponMd.findOne({ code, isActive: true });
+  if (!coupon) throw ApiError.notFound("کد تخفیف یافت نشد یا غیرفعال است");
+  if (coupon.expiresAt <= new Date()) throw ApiError.badRequest("کد تخفیف منقضی شده است");
+
+  if (coupon.usageLimit !== null && coupon.usageLimit !== undefined && coupon.usedCount >= coupon.usageLimit) {
+    throw ApiError.badRequest("سقف استفاده از این کد تخفیف پر شده است");
+  }
+
+  // محدوده‌ی مبلغ سفارش (مجموع کالاها، بدون هزینه ارسال)؛ هر دو مرز شامل خودشونن
+  const minOrder = coupon.minOrderAmount || 0;
+  const maxOrder =
+    coupon.maxOrderAmount !== null && coupon.maxOrderAmount !== undefined ? coupon.maxOrderAmount : null;
+
+  if (orderAmount < minOrder || (maxOrder !== null && orderAmount > maxOrder)) {
+    throw ApiError.badRequest(orderRangeMessage(minOrder, maxOrder));
+  }
+
+  let discountAmount =
+    coupon.type === "percent" ? Math.floor((orderAmount * coupon.value) / 100) : coupon.value;
+  if (coupon.type === "percent" && coupon.maxDiscount) {
+    discountAmount = Math.min(discountAmount, coupon.maxDiscount);
+  }
+  discountAmount = Math.min(discountAmount, orderAmount); // تخفیف بیشتر از مبلغ سفارش نمیشه
+
+  return { coupon, discountAmount };
+}

@@ -28,6 +28,7 @@ const fields = {
   value: amount("مقدار تخفیف", 1),
   maxDiscount: amount("سقف تخفیف", 1).nullable().optional(),
   minOrderAmount: amount("حداقل مبلغ سفارش", 0).optional(),
+  maxOrderAmount: amount("حداکثر مبلغ سفارش", 1).nullable().optional(),
   usageLimit: z
     .number({ invalid_type_error: "سقف استفاده باید عدد باشد" })
     .int("سقف استفاده باید عدد صحیح باشد")
@@ -46,12 +47,26 @@ const percentCheck = [
   { path: ["value"], message: "درصد تخفیف نمی‌تواند بیشتر از ۱۰۰ باشد" },
 ];
 
+const orderRangeCheck = [
+  (data) =>
+    data.maxOrderAmount === null ||
+    data.maxOrderAmount === undefined ||
+    data.minOrderAmount === undefined ||
+    data.maxOrderAmount >= data.minOrderAmount,
+  { path: ["maxOrderAmount"], message: "حداکثر مبلغ سفارش نمی‌تواند کمتر از حداقل آن باشد" },
+];
+
 // کد بعد از ساخت قابل تغییر نیست؛ به همین دلیل تو اسکیمای ویرایش نیست
-export const createCouponSchema = z.object({ code: codeField, ...fields }).refine(...percentCheck);
+export const createCouponSchema = z
+  .object({ code: codeField, ...fields })
+  .refine(...percentCheck)
+  .refine(...orderRangeCheck);
+
 export const updateCouponSchema = z
   .object(fields)
   .partial()
-  .refine(...percentCheck);
+  .refine(...percentCheck)
+  .refine(...orderRangeCheck);
 
 export const applyCouponSchema = z.object({
   code: z

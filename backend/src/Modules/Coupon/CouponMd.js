@@ -9,6 +9,7 @@ const couponSchema = new Schema(
     value: { type: Number, required: true, min: 0 }, // درصد یا مبلغ ثابت
     maxDiscount: { type: Number, default: null }, // سقف تخفیف برای نوع percent
     minOrderAmount: { type: Number, default: 0 },
+    maxOrderAmount: { type: Number, default: null, min: 0 },
     usageLimit: { type: Number, default: null }, // null = نامحدود
     usedCount: { type: Number, default: 0 },
     expiresAt: { type: Date, required: true },

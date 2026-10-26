@@ -61,12 +61,23 @@ export function DiscountText({ coupon }) {
   );
 }
 
-export function MinOrderText({ coupon }) {
-  return coupon.minOrderAmount > 0 ? (
-    <span>{formatToman(coupon.minOrderAmount)}</span>
-  ) : (
-    <span className="text-ink/30">ندارد</span>
-  );
+export function OrderRangeText({ coupon }) {
+  const min = coupon.minOrderAmount || 0;
+  const max = coupon.maxOrderAmount ?? null;
+
+  if (min > 0 && max !== null) {
+    return (
+      <div>
+        <p className="text-sm">
+          {formatNumber(min)} تا {formatNumber(max)}
+        </p>
+        <p className="text-xs text-ink/40">تومان</p>
+      </div>
+    );
+  }
+  if (min > 0) return <span>از {formatToman(min)}</span>;
+  if (max !== null) return <span>تا {formatToman(max)}</span>;
+  return <span className="text-ink/30">ندارد</span>;
 }
 
 export function UsageCell({ coupon }) {

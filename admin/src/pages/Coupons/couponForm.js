@@ -70,6 +70,7 @@ export function buildInitialState(coupon) {
       value: "",
       maxDiscount: "",
       minOrderAmount: "",
+      maxOrderAmount: "",
       usageLimit: "",
       expiryKey: addDaysToKey(todayKey(), 30),
       isActive: true,
@@ -82,6 +83,7 @@ export function buildInitialState(coupon) {
     value: String(coupon.value),
     maxDiscount: coupon.maxDiscount ? String(coupon.maxDiscount) : "",
     minOrderAmount: coupon.minOrderAmount ? String(coupon.minOrderAmount) : "",
+    maxOrderAmount: coupon.maxOrderAmount ? String(coupon.maxOrderAmount) : "",
     usageLimit:
       coupon.usageLimit !== null && coupon.usageLimit !== undefined
         ? String(coupon.usageLimit)
@@ -133,6 +135,16 @@ export function validateCoupon(
     errors.minOrderAmount = "حداقل مبلغ سفارش بیش از حد مجاز است";
   }
 
+  if (form.maxOrderAmount) {
+  const max = Number(form.maxOrderAmount);
+  if (!Number.isInteger(max) || max < 1) {
+    errors.maxOrderAmount = "حداکثر مبلغ سفارش باید بیشتر از صفر باشد";
+  } else if (max > MAX_AMOUNT) {
+    errors.maxOrderAmount = "حداکثر مبلغ سفارش بیش از حد مجاز است";
+  } else if (form.minOrderAmount && max < Number(form.minOrderAmount)) {
+    errors.maxOrderAmount = "حداکثر نمی‌تواند کمتر از حداقل مبلغ سفارش باشد";
+  }
+}
   if (form.usageLimit) {
     const limit = Number(form.usageLimit);
     if (!Number.isInteger(limit) || limit < 1)
@@ -165,6 +177,7 @@ export function buildPayload(form, { editing, originalExpiryKey }) {
         ? Number(form.maxDiscount)
         : null,
     minOrderAmount: form.minOrderAmount ? Number(form.minOrderAmount) : 0,
+    maxOrderAmount: form.maxOrderAmount ? Number(form.maxOrderAmount) : null,
     usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
     isActive: form.isActive,
   };

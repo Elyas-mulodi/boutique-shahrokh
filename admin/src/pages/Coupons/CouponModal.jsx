@@ -136,7 +136,10 @@ function CouponModal({ open, coupon, onClose, onSaved }) {
   };
 
   // مثال زنده از تخفیف
-  const sample = Math.max(SAMPLE_AMOUNT, Number(form.minOrderAmount) || 0);
+  const minOrder = Number(form.minOrderAmount) || 0;
+  const maxOrder = Number(form.maxOrderAmount) || 0;
+  let sample = Math.max(SAMPLE_AMOUNT, minOrder);
+  if (maxOrder > 0 && sample > maxOrder) sample = maxOrder;
   const valueNumber = Number(form.value);
   const exampleValid =
     Number.isInteger(valueNumber) &&
@@ -280,43 +283,64 @@ function CouponModal({ open, coupon, onClose, onSaved }) {
             )}
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Input
-              label="حداقل مبلغ سفارش (تومان، اختیاری)"
-              value={form.minOrderAmount}
-              onChange={(e) =>
-                patch({ minOrderAmount: digitsOnly(e.target.value) })
-              }
-              error={errors.minOrderAmount}
-              inputMode="numeric"
-              dir="ltr"
-              maxLength={11}
-              placeholder="500000"
-              hint={
-                Number(form.minOrderAmount) > 0
-                  ? formatToman(Number(form.minOrderAmount))
-                  : "خالی = بدون حداقل (مبلغ کالاها، بدون هزینه ارسال)"
-              }
-            />
-
-            <Input
-              label="سقف تعداد استفاده (اختیاری)"
-              value={form.usageLimit}
-              onChange={(e) =>
-                patch({ usageLimit: digitsOnly(e.target.value) })
-              }
-              error={errors.usageLimit}
-              inputMode="numeric"
-              dir="ltr"
-              maxLength={8}
-              placeholder="100"
-              hint={
-                editing
-                  ? `تاکنون ${formatNumber(usedCount)} بار استفاده شده (شامل سفارش‌های در انتظار پرداخت)`
-                  : "خالی = نامحدود"
-              }
-            />
+          <div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Input
+                label="حداقل مبلغ سفارش (تومان، اختیاری)"
+                value={form.minOrderAmount}
+                onChange={(e) =>
+                  patch({ minOrderAmount: digitsOnly(e.target.value) })
+                }
+                error={errors.minOrderAmount}
+                inputMode="numeric"
+                dir="ltr"
+                maxLength={11}
+                placeholder="1000000"
+                hint={
+                  Number(form.minOrderAmount) > 0
+                    ? formatToman(Number(form.minOrderAmount))
+                    : "خالی = بدون حداقل"
+                }
+              />
+              <Input
+                label="حداکثر مبلغ سفارش (تومان، اختیاری)"
+                value={form.maxOrderAmount}
+                onChange={(e) =>
+                  patch({ maxOrderAmount: digitsOnly(e.target.value) })
+                }
+                error={errors.maxOrderAmount}
+                inputMode="numeric"
+                dir="ltr"
+                maxLength={11}
+                placeholder="2000000"
+                hint={
+                  Number(form.maxOrderAmount) > 0
+                    ? formatToman(Number(form.maxOrderAmount))
+                    : "خالی = بدون حداکثر"
+                }
+              />
+            </div>
+            <p className="mt-2 text-xs leading-6 text-ink/40">
+              حداقل و حداکثر روی مجموع قیمت کالاها (قبل از تخفیف و بدون هزینه
+              ارسال) بررسی می‌شود و خود این دو عدد هم مجازند.
+            </p>
           </div>
+
+          <Input
+            label="سقف تعداد استفاده (اختیاری)"
+            value={form.usageLimit}
+            onChange={(e) => patch({ usageLimit: digitsOnly(e.target.value) })}
+            error={errors.usageLimit}
+            inputMode="numeric"
+            dir="ltr"
+            maxLength={8}
+            placeholder="100"
+            hint={
+              editing
+                ? `تاکنون ${formatNumber(usedCount)} بار استفاده شده (شامل سفارش‌های در انتظار پرداخت)`
+                : "خالی = نامحدود"
+            }
+          />
 
           <JalaliDateField
             label="تاریخ انقضا"

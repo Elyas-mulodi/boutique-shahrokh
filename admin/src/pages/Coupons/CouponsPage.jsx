@@ -24,7 +24,7 @@ import {
   CouponStatusBadge,
   DiscountText,
   ExpiryCell,
-  MinOrderText,
+  OrderRangeText,
   UsageCell,
 } from "./CouponParts";
 import { getCouponStatus } from "./couponForm";
@@ -205,9 +205,9 @@ function CouponsPage() {
       render: (c) => <DiscountText coupon={c} />,
     },
     {
-      key: "min",
-      header: "حداقل سفارش",
-      render: (c) => <MinOrderText coupon={c} />,
+      key: "range",
+      header: "محدوده سفارش",
+      render: (c) => <OrderRangeText coupon={c} />,
     },
     {
       key: "usage",
@@ -241,8 +241,8 @@ function CouponsPage() {
           <DiscountText coupon={c} />
         </div>
         <div>
-          <p className="mb-0.5 text-xs text-ink/40">حداقل سفارش</p>
-          <MinOrderText coupon={c} />
+          <p className="mb-0.5 text-xs text-ink/40">محدوده سفارش</p>
+          <OrderRangeText coupon={c} />
         </div>
         <div>
           <p className="mb-0.5 text-xs text-ink/40">استفاده</p>
