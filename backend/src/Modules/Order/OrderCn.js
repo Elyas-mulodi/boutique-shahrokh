@@ -8,8 +8,9 @@ import ProductMd from "../Product/ProductMd.js";
 import UserMd from "../User/UserMd.js";
 import CouponMd from "../Coupon/CouponMd.js";
 import { validateAndCalculate, claimCouponUse, releaseCouponUse } from "../Coupon/CouponCn.js";
-import { requestZarinpalPayment } from "../Payment/PaymentCn.js";
+import { requestZarinpalPayment, verifyZarinpalPayment } from "../../Utils/zarinpal.js";
 import { escapeRegex, normalizeDigits, parseDate, toPositiveInt } from "../../Utils/text.js";
+import env from "../../Config/env.js";
 
 const STATUS_LABELS = {
   pending_payment: "در انتظار پرداخت",
@@ -398,20 +399,36 @@ export const deleteMyOrder = asyncHandler(async (req, res) => {
   const order = await OrderMd.findOne({ _id: req.params.id, user: req.user._id });
   if (!order) throw ApiError.notFound("سفارش یافت نشد");
 
-  // شرط paymentStatus تو خود حذف چک میشه تا اگه همین لحظه پرداخت شد، حذف نشه
+  if (order.paymentStatus === "paid") {
+    throw ApiError.badRequest("فقط سفارش‌های پرداخت‌نشده قابل حذف هستند");
+  }
+
+  // قبل از حذف از درگاه استعلام میشه تا سفارشِ پرداخت‌شده‌ای که هنوز تایید نشده حذف نشه
+  if (order.paymentAuthority) {
+    const check = await verifyZarinpalPayment({
+      authority: order.paymentAuthority,
+      amount: order.totalAmount,
+    });
+
+    if (check.ok) {
+      await markOrderPaidAndDeductStock(order, check.refId);
+      throw ApiError.conflict("پرداخت این سفارش تایید شده است و سفارش حذف نمی‌شود");
+    }
+    if (check.networkError && !env.ZARINPAL_SANDBOX) {
+      throw new ApiError(
+        503,
+        "در حال حاضر امکان بررسی وضعیت پرداخت نیست؛ کمی بعد دوباره تلاش کنید"
+      );
+    }
+  }
+
   const removed = await OrderMd.findOneAndDelete({
     _id: order._id,
     paymentStatus: { $in: ["pending", "failed"] },
   });
   if (!removed) throw ApiError.badRequest("فقط سفارش‌های پرداخت‌نشده قابل حذف هستند");
 
-  // یک استفاده از کد تخفیف سفارش به کوپن برگردونده میشه
-  if (removed.couponCode) {
-    await CouponMd.updateOne(
-      { code: removed.couponCode, usedCount: { $gt: 0 } },
-      { $inc: { usedCount: -1 } }
-    );
-  }
+  if (removed.couponCode) await releaseCouponUse(removed.couponCode);
 
   new ApiResponse(200, null, "سفارش حذف شد").send(res);
 });

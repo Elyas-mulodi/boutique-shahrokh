@@ -24,6 +24,8 @@ import DashboardRoutes from "./Modules/Dashboard/Dashboard.js";
 
 const app = express();
 
+if (env.TRUST_PROXY) app.set("trust proxy", env.TRUST_PROXY);
+
 const allowedOrigins = [env.CLIENT_URL, env.ADMIN_URL].filter(Boolean);
 const isProduction = env.NODE_ENV === "production";
 

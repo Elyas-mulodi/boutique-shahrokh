@@ -7,7 +7,6 @@ import OrderMd from "../Order/OrderMd.js";
 import CartMd from "../Cart/CartMd.js";
 import ProductMd from "../Product/ProductMd.js";
 
-// سقف استفاده پر شده (usageLimit خالی = نامحدود)
 const EXHAUSTED = {
   $and: [
     { $ne: [{ $ifNull: ["$usageLimit", null] }, null] },

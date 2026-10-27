@@ -9,6 +9,7 @@ const otpSchema = new Schema(
     purpose: { type: String, enum: ["forgot_password"], required: true },
     expiresAt: { type: Date, required: true },
     isUsed: { type: Boolean, default: false },
+    attempts: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
