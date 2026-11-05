@@ -8,7 +8,7 @@ import {
   verifyZarinpalPayment,
 } from "../Utils/zarinpal.js";
 
-const reported = new Set(); 
+const reported = new Set();
 
 function reportOnce(key, message) {
   if (reported.has(key)) return;
@@ -56,9 +56,17 @@ export async function reconcileUnverifiedPayments() {
       });
       if (!result.ok) continue;
 
-      await markOrderPaidAndDeductStock(order, result.refId);
-      recovered += 1;
-      logger.info(`✅ پرداخت بازیابی شد: سفارش ${order._id}`);
+      const recovery = await markOrderPaidAndDeductStock(order, result.refId);
+
+      if (recovery.stockFailed) {
+        logger.error(`پرداخت تایید شد اما کسر موجودی شکست خورد: سفارش ${order._id}`);
+        continue;
+      }
+
+      if (recovery.success) {
+        recovered += 1;
+        logger.info(`✅ پرداخت بازیابی شد: سفارش ${order._id}`);
+      }
     } catch (err) {
       logger.error(`خطا در بازیابی پرداخت ${item.authority}: ${err.message}`);
     }
