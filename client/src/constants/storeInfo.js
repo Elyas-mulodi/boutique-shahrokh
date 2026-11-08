@@ -18,3 +18,10 @@ export const formatToman = (n) => `${n.toLocaleString("fa-IR")} تومان`;
 export const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
   STORE.address
 )}`;
+
+export const DEVELOPER = {
+  name: "Elyas Molodi",
+  telegram: "https://t.me/Elyas.vll",
+  phone: "+989010708833", // برای tel: بدون فاصله
+  phoneDisplay: "09010708833", // چیزی که نمایش داده میشه
+};

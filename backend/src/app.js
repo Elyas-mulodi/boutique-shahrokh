@@ -21,6 +21,7 @@ import PaymentRoutes from "./Modules/Payment/Payment.js";
 import CouponRoutes from "./Modules/Coupon/Coupon.js";
 import MediaRoutes from "./Modules/Media/Media.js";
 import DashboardRoutes from "./Modules/Dashboard/Dashboard.js";
+import BannerRouter from "./Modules/Banner/Banner.js"
 
 const app = express();
 
@@ -89,6 +90,7 @@ app.use("/api/v1/orders", OrderRoutes);
 app.use("/api/v1/payment", PaymentRoutes);
 app.use("/api/v1/coupons", CouponRoutes);
 app.use("/api/v1/media", MediaRoutes);
+app.use("/api/v1/banners", BannerRouter);
 app.use("/api/v1/dashboard", DashboardRoutes);
 
 app.use(notFound);

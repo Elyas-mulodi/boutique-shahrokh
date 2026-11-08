@@ -17,6 +17,7 @@ import CategoriesPage from "./pages/Categories/CategoriesPage";
 import UserDetailPage from "./pages/Users/UserDetailPage";
 import UsersPage from "./pages/Users/UsersPage";
 import CouponsPage from "./pages/Coupons/CouponsPage";
+import BannersPage from "./pages/Banners/Bannerspage";
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
             <Route path="users" element={<UsersPage />} />
             <Route path="users/:id" element={<UserDetailPage />} />{" "}
             <Route path="coupons" element={<CouponsPage />} />
+            <Route path="banners" element={<BannersPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useSelector } from "react-redux";
 import { Send, Phone, MapPin, Clock } from "lucide-react";
-import { STORE } from "../constants/storeInfo";
+import { STORE, DEVELOPER } from "../constants/storeInfo";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 10 },
@@ -180,6 +180,26 @@ function Footer() {
             </div>
           </div>
         </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 pb-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-body text-xs text-paper/40">
+        <span>طراحی و توسعه:</span>
+        <a
+          href={DEVELOPER.telegram}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-paper/70 hover:text-paper transition-colors"
+        >
+          <Send size={12} />
+          {DEVELOPER.name}
+        </a>
+        <span className="h-3 w-px bg-paper/20" aria-hidden="true" />
+        <a
+          href={`tel:${DEVELOPER.phone}`}
+          dir="ltr"
+          className="hover:text-paper transition-colors"
+        >
+          {DEVELOPER.phoneDisplay}
+        </a>
       </div>
     </footer>
   );

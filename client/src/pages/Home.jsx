@@ -9,6 +9,9 @@ import {
   fetchLatestProducts,
   fetchBestSellers,
 } from "../redux/slices/productSlice";
+import HeroRail from "../components/Hero";
+import HeroArch from "../components/Hero";
+import HeroArchPortal from "../components/Hero";
 
 function Home() {
   const dispatch = useDispatch();
@@ -34,8 +37,12 @@ function Home() {
           viewMoreLink="/products"
         />
         <CategoryShowcase />
-        <PromoBanner />
         <BestSellersSection />
+
+        <PromoBanner />
+        {/* <HeroRail/> */}
+        {/* <HeroArch/> */}
+        
       </div>
     </div>
   );
