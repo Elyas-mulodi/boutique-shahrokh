@@ -45,7 +45,9 @@ function Header() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { items: categories, status: categoriesStatus } = useSelector((state) => state.categories);
+  const { items: categories, status: categoriesStatus } = useSelector(
+    (state) => state.categories,
+  );
   const { token, user } = useSelector((state) => state.auth);
   const cartItems = useSelector((state) => state.cart.items);
   const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
@@ -115,7 +117,10 @@ function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50" style={{ top: "env(safe-area-inset-top, 0px)" }}>
+    <header
+      className="sticky top-0 z-50"
+      style={{ top: "env(safe-area-inset-top, 0px)" }}
+    >
       <div className="bg-paper/95 backdrop-blur-md border-b border-ink/10">
         <div className="relative" onMouseLeave={scheduleCloseMega}>
           <motion.div
@@ -124,7 +129,10 @@ function Header() {
             className={`max-w-7xl mx-auto px-4 flex items-center justify-between ${scrolled ? "shadow-sm" : ""}`}
           >
             {/* همبرگر + لوگو */}
-            <div className="flex items-center gap-3" onMouseEnter={() => setMegaOpen(false)}>
+            <div
+              className="flex items-center gap-3"
+              onMouseEnter={() => setMegaOpen(false)}
+            >
               <button
                 className="md:hidden text-ink"
                 onClick={() => setMenuOpen(true)}
@@ -133,7 +141,10 @@ function Header() {
                 <Menu size={24} />
               </button>
 
-              <Link to="/" className="font-heading text-ink text-lg md:text-2xl">
+              <Link
+                to="/"
+                className="font-heading text-ink text-lg md:text-2xl"
+              >
                 بوتیک شاهرخ
               </Link>
             </div>
@@ -153,21 +164,25 @@ function Header() {
                 className="relative group py-2 flex items-center gap-1"
               >
                 <span
-                  className={`text-sm font-body transition-colors duration-200 ${
-                    megaOpen || onCategoryRoute ? "text-blue" : "text-ink group-hover:text-blue"
+                  className={`text-sm font-body transition-colors duration-200 pt-1 ${
+                    megaOpen || onCategoryRoute
+                      ? "text-blue"
+                      : "text-ink group-hover:text-blue"
                   }`}
                 >
                   دسته‌بندی‌ها
                 </span>
                 <ChevronDown
                   size={14}
-                  className={`transition-transform duration-200 ${
+                  className={`pt-1 transition-transform duration-200 ${
                     megaOpen ? "rotate-180 text-blue" : "text-ink/60"
                   }`}
                 />
                 <span
                   className={`absolute bottom-0 right-0 left-0 h-[1.5px] bg-blue origin-center transition-transform duration-300 ${
-                    megaOpen || onCategoryRoute ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                    megaOpen || onCategoryRoute
+                      ? "scale-x-100"
+                      : "scale-x-0 group-hover:scale-x-100"
                   }`}
                 />
               </button>
@@ -178,24 +193,28 @@ function Header() {
             </nav>
 
             {/* آیکون‌ها */}
-            <div className="flex items-center gap-5" onMouseEnter={() => setMegaOpen(false)}>
+            {/* آیکون‌ها */}
+            <div
+              className="flex items-center gap-1 md:gap-2"
+              onMouseEnter={() => setMegaOpen(false)}
+            >
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setSearchOpen((v) => !v)}
                 aria-label="جستجو"
-                className="text-ink hover:text-blue transition-colors"
+                className="flex h-10 w-10 items-center justify-center text-ink hover:text-blue transition-colors"
               >
                 {searchOpen ? <X size={22} /> : <Search size={22} />}
               </motion.button>
 
-              <div className="hidden md:block">
+              <div className="hidden pt-1 md:flex h-10 min-w-10 items-center justify-center">
                 <UserMenu onLogout={handleLogout} />
               </div>
 
               <Link
                 to="/cart"
                 aria-label="سبد خرید"
-                className="relative text-ink hover:text-blue transition-colors"
+                className="relative flex h-10 w-10 items-center justify-center text-ink hover:text-blue transition-colors"
               >
                 <ShoppingBag size={22} />
                 {cartCount > 0 && (
@@ -204,7 +223,7 @@ function Header() {
                     initial={{ scale: 0.4 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                    className="absolute -top-1.5 -left-1.5 bg-blue text-paper text-[10px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center font-bold"
+                    className="absolute top-0.5 left-0.5 bg-blue text-paper text-[10px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center font-bold"
                   >
                     {cartCount.toLocaleString("fa-IR")}
                   </motion.span>
@@ -235,7 +254,10 @@ function Header() {
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="overflow-hidden border-t border-ink/10"
             >
-              <form onSubmit={handleSearch} className="px-4 py-3 max-w-7xl mx-auto flex items-center gap-3">
+              <form
+                onSubmit={handleSearch}
+                className="px-4 py-3 max-w-7xl mx-auto flex items-center gap-3"
+              >
                 <input
                   type="text"
                   value={searchTerm}

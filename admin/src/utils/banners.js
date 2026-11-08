@@ -3,20 +3,23 @@ export const PLACEMENT_LABELS = {
   promo: "بنر تبلیغاتی",
 };
 
-export const PLACEMENT_OPTIONS = Object.entries(PLACEMENT_LABELS).map(([value, label]) => ({ value, label }));
+export const PLACEMENT_OPTIONS = Object.entries(PLACEMENT_LABELS).map(
+  ([value, label]) => ({ value, label }),
+);
 
 // ⚠️ اگه Thumb.jsx آدرس تصویر رو یه‌جور دیگه کامل می‌کنه، همون منطق رو اینجا بذار
 export function toImageSrc(url) {
   if (!url) return "";
   if (/^https?:\/\//i.test(url)) return url;
-  return `${import.meta.env.VITE_UPLOADS_URL || ""}${url}`;
+  return `${import.meta.env.VITE_UPLOADS_URL || ""}${url.startsWith("/") ? "" : "/"}${url}`;
 }
-
 // وضعیت واقعی نمایش بنر توی سایت (فعال بودن + بازه‌ی زمان‌بندی)
 export function getBannerStatus(banner, now = Date.now()) {
   if (!banner.isActive) return { label: "غیرفعال", live: false };
-  if (banner.startsAt && new Date(banner.startsAt).getTime() > now) return { label: "زمان‌بندی‌شده", live: false };
-  if (banner.endsAt && new Date(banner.endsAt).getTime() < now) return { label: "منقضی‌شده", live: false };
+  if (banner.startsAt && new Date(banner.startsAt).getTime() > now)
+    return { label: "زمان‌بندی‌شده", live: false };
+  if (banner.endsAt && new Date(banner.endsAt).getTime() < now)
+    return { label: "منقضی‌شده", live: false };
   return { label: "در حال نمایش", live: true };
 }
 
@@ -43,5 +46,8 @@ export function fromLocalInput(value) {
 
 // هماهنگ با BannerVl.js: مسیر داخلی یا https
 export function isValidLink(value) {
-  return (value.startsWith("/") && !value.startsWith("//")) || /^https:\/\//i.test(value);
+  return (
+    (value.startsWith("/") && !value.startsWith("//")) ||
+    /^https:\/\//i.test(value)
+  );
 }

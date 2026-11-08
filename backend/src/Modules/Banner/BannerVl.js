@@ -2,14 +2,18 @@ import { z } from "zod";
 import { BANNER_PLACEMENTS } from "./BannerMd.js";
 
 // ⚠️ پیشوند آدرس آپلودهای پروژه‌ی خودت رو اینجا بذار (اگه آدرس کامل ذخیره می‌کنی، refine رو عوض کن)
-const UPLOADS_PREFIX = "/uploads/";
 
 const imageUrl = z
   .string()
   .trim()
+  .min(1, "آدرس تصویر نامعتبر است")
   .max(500, "آدرس تصویر بیش از حد طولانی است")
-  .refine((v) => v.startsWith(UPLOADS_PREFIX) && !v.includes(".."), `آدرس تصویر باید با ${UPLOADS_PREFIX} شروع شود`);
-
+  .refine((v) => !v.includes(".."), "آدرس تصویر نامعتبر است")
+  .refine(
+    // یا http(s) / مسیر با اسلش، یا مسیر بدون scheme (مثل uploads/x.jpg)
+    (v) => /^(https?:\/\/|\/)/i.test(v) || !/^[a-z][a-z0-9+.-]*:/i.test(v),
+    "آدرس تصویر نامعتبر است"
+  );
 // فقط مسیر داخلی سایت یا https (جلوی javascript: و مشابهش رو می‌گیره)
 const link = z
   .string()
