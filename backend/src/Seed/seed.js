@@ -39,11 +39,11 @@ async function seed() {
   console.log("👤 ساخت کاربر ادمین...");
   const admin = await UserMd.create({
     name: "ادمین بوتیک شاهرخ",
-    phone: "09120000000",
-    password: "admin123",
+    phone: "09907228959",
+    password: "shahrokh123",
     role: "admin",
   });
-  console.log(`   شماره: ${admin.phone} | رمز: admin123`);
+  console.log(`   شماره: ${admin.phone} | رمز: shahrokh123`);
 
   // ---------- دسته‌بندی‌ها (ریشه‌ای) ----------
   console.log("📂 ساخت دسته‌بندی‌ها...");
